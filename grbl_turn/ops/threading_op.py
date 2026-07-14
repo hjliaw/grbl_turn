@@ -11,7 +11,7 @@ Both use the same degressive infeed math from passes.thread_infeeds().
 
 from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import flank_offset, thread_infeeds
 from grbl_turn.units import Units, fmt
 
@@ -55,7 +55,7 @@ def _fields(internal: bool) -> list[Field]:
         Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
               choices=["0", "29.5", "30"]),
         Field("clearance", "Clearance (radial)", "len", 0.020, group="Cutting"),
-    ] + spindle_fields(default_rpm=200)
+    ]
 
 
 def _pitch(p: dict, units: Units) -> float:
@@ -93,7 +93,6 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
          f"compound {angle:g} deg",
          "REQUIRES spindle sync (encoder); feed hold is DEFERRED during passes"],
         units)
-    lines += spindle_preamble(p)
     lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)} "
                  f"Z{fmt(lead_in, units)}")
 
@@ -112,7 +111,7 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
             lines.append(f"G0 X{fmt(machine.x_word(r - inward * d), units)}")
             lines.append(f"G33 Z{fmt(z_end, units)} K{fmt(pitch, units)}")
             lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)}")
-    lines += footer(p.get("app_spindle", False), machine.x_word(drive_r),
+    lines += footer(machine.x_word(drive_r),
                     lead_in, units)
     return lines
 

@@ -4,7 +4,7 @@ passes stepped to the cone, then a finish pass follows the taper itself."""
 
 from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import turning_passes
 from grbl_turn.units import Units, fmt
 
@@ -36,7 +36,7 @@ def _fields(internal: bool) -> list[Field]:
               group="X (cross-slide)"),
         Field("feed", "Feed", "feed", 3.0, group="Cutting"),
         Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
-    ] + spindle_fields()
+    ]
 
 
 def _generate(p: dict, machine: MachineProfile, units: Units,
@@ -71,7 +71,6 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
         [f"dia {p['face_dia']} at face -> {p['end_dia']} at Z-{length:g}",
          f"doc {p['doc']} radial, feed {p['feed']}"],
         units)
-    lines += spindle_preamble(p)
     lines.append(f"G0 X{fmt(safe_x, units)} Z{fmt(clear, units)}")
 
     # roughing: straight passes, each stopping where it meets the cone
@@ -88,7 +87,7 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     lines.append(f"G1 X{fmt(machine.x_word(end_r), units)} "
                  f"Z{fmt(-length, units)} F{p['feed']:g}")
     lines.append(f"G0 X{fmt(machine.x_word(end_r + retract_sign * clear), units)}")
-    lines += footer(p.get("app_spindle", False), safe_x, clear, units)
+    lines += footer(safe_x, clear, units)
     return lines
 
 

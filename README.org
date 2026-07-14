@@ -31,8 +31,8 @@ curl -sSL https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
   G20/G21 accordingly. Switching units converts all saved parameters
   (diameters, lengths, feeds) — except thread pitch, which is entered
   as TPI or a custom in/rev value in inch mode, and as mm/rev in mm mode.
-- The app never starts the spindle unless "App starts spindle (M3)" is
-  checked — otherwise start it yourself before pressing Run.
+- The app never touches the spindle (no M3/M5/S words) — set the speed
+  and start it yourself before pressing Run, stop it after.
 
 ** Threading
 Requires spindle-synchronized motion in the firmware (encoder). Emits a

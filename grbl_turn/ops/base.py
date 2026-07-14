@@ -51,18 +51,6 @@ class Operation:
     is_threading: bool = False
 
 
-def spindle_fields(default_rpm: int = 600) -> list[Field]:
-    return [
-        Field("rpm", "Spindle RPM", "rpm", default_rpm, group="Spindle",
-              minimum=1, maximum=10000,
-              tooltip="Only used when 'App starts spindle' is checked"),
-        Field("app_spindle", "App starts spindle (M3)", "bool", False,
-              group="Spindle",
-              tooltip="Unchecked: start the spindle yourself before Run"),
-    ]
-
-
-def spindle_preamble(params: dict) -> list[str]:
-    if params.get("app_spindle"):
-        return [f"M3 S{int(params['rpm'])}"]
-    return []
+# The app never touches the spindle: the user's machine is adjusted
+# manually, so programs contain no M3/M5/S words — start the spindle
+# before Run, stop it after.

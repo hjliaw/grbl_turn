@@ -2,7 +2,7 @@
 
 from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import turning_passes
 from grbl_turn.units import Units, fmt
 
@@ -19,7 +19,7 @@ FIELDS = [
     Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting",
           tooltip="Radial retract above the work and Z gap in front of the face"),
-] + spindle_fields()
+]
 
 
 def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
@@ -36,14 +36,13 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         [f"dia {p['start_dia']} -> {p['end_dia']}, length {p['length']}",
          f"doc {p['doc']} radial, finish {p['finish_allow']}, feed {p['feed']}"],
         units)
-    lines += spindle_preamble(p)
     lines.append(f"G0 X{fmt(safe_x, units)} Z{fmt(z_clear, units)}")
     for r in turning_passes(start_r, end_r, p["doc"], p["finish_allow"]):
         lines.append(f"G0 X{fmt(machine.x_word(r), units)}")
         lines.append(f"G1 Z{fmt(-p['length'], units)} F{p['feed']:g}")
         lines.append(f"G0 X{fmt(machine.x_word(r + clear), units)}")
         lines.append(f"G0 Z{fmt(z_clear, units)}")
-    lines += footer(p.get("app_spindle", False), safe_x, z_clear, units)
+    lines += footer(safe_x, z_clear, units)
     return lines
 
 

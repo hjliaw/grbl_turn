@@ -2,7 +2,7 @@
 
 from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.base import Field, Operation
 from grbl_turn.units import Units, fmt
 
 FIELDS = [
@@ -14,7 +14,7 @@ FIELDS = [
     Field("doc", "Depth per pass (Z)", "len", 0.010, group="Z (bed/leadscrew)"),
     Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
-] + spindle_fields()
+]
 
 
 def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
@@ -28,7 +28,6 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         [f"stock dia {p['work_dia']}, total depth {p['total_depth']}",
          f"doc {p['doc']}, feed {p['feed']}"],
         units)
-    lines += spindle_preamble(p)
     lines.append(f"G0 X{fmt(start_x, units)} Z{fmt(clear, units)}")
 
     # Z0 is the CURRENT face; each pass goes deeper until total_depth removed.
@@ -42,7 +41,7 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         lines.append(f"G0 Z{fmt(z, units)}")
         lines.append(f"G1 X{fmt(machine.x_word(end_r), units)} F{p['feed']:g}")
         lines.append(f"G0 Z{fmt(z + clear, units)}")
-    lines += footer(p.get("app_spindle", False), start_x, clear, units)
+    lines += footer(start_x, clear, units)
     return lines
 
 

@@ -3,7 +3,7 @@ optional pecking to break chips."""
 
 from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.base import Field, Operation
 from grbl_turn.units import Units, fmt
 
 FIELDS = [
@@ -19,7 +19,7 @@ FIELDS = [
           minimum=0.0, tooltip="Retract briefly after each peck to break chips"),
     Field("retract", "Peck retract", "len", 0.010, group="Cutting", minimum=0.0),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
-] + spindle_fields(default_rpm=300)
+]
 
 
 def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
@@ -36,7 +36,6 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         [f"stock dia {p['work_dia']} -> {p['end_dia']} at Z{z:g}",
          f"feed {p['feed']}, peck {p['peck']}"],
         units)
-    lines += spindle_preamble(p)
     lines.append(f"G0 X{fmt(safe_x, units)} Z{fmt(clear, units)}")
     lines.append(f"G0 Z{fmt(z, units)}")
 
@@ -51,7 +50,7 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         lines.append(f"G1 X{fmt(machine.x_word(end_r), units)} F{p['feed']:g}")
 
     lines.append(f"G0 X{fmt(safe_x, units)}")
-    lines += footer(p.get("app_spindle", False), safe_x, clear, units)
+    lines += footer(safe_x, clear, units)
     return lines
 
 

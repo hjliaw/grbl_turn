@@ -18,15 +18,10 @@ def header(op_title: str, param_desc: list[str], units: Units) -> list[str]:
     return lines
 
 
-def footer(spindle_started: bool, safe_x_word: float, safe_z: float,
-           units: Units) -> list[str]:
-    lines = []
-    if spindle_started:
-        lines.append("M5")
-    lines.append(f"G0 X{fmt(safe_x_word, units)}")
-    lines.append(f"G0 Z{fmt(safe_z, units)}")
-    lines.append("M2")
-    return lines
+def footer(safe_x_word: float, safe_z: float, units: Units) -> list[str]:
+    return [f"G0 X{fmt(safe_x_word, units)}",
+            f"G0 Z{fmt(safe_z, units)}",
+            "M2"]
 
 
 _WORD = re.compile(r"([XZ])(-?\d+\.?\d*)")
