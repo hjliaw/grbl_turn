@@ -1,24 +1,34 @@
-"""Preview + run dialog: shows the generated program and its travel extents,
-requires an explicit confirmation, then streams with progress and a console."""
+"""Preview + run page: shows the generated program, its toolpath and travel
+extents, requires an explicit confirmation, then streams with progress and
+a console. Lives in the main-window stack; Back is locked while streaming."""
 
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel,
-                               QPlainTextEdit, QProgressBar, QPushButton,
-                               QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QLabel, QPlainTextEdit,
+                               QProgressBar, QPushButton, QVBoxLayout, QWidget)
 
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
 from grbl_turn.ui.path_view import PathView
 
 
-class RunDialog(QDialog):
+class RunPage(QWidget):
+    back_requested = Signal()
+
     def __init__(self, op: Operation, lines: list[str], controller,
                  parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"{op.title} — preview & run")
-        self.resize(1050, 640)
         self.controller = controller
         self.lines = lines
+        self.op_title = op.title
+
+        self.back_btn = QPushButton("◀ Back")
+        self.back_btn.clicked.connect(self.back_requested)
+        top = QHBoxLayout()
+        top.addWidget(self.back_btn)
+        top.addSpacing(12)
+        top.addWidget(QLabel(f"<b>{op.title} — preview &amp; run</b>"))
+        top.addStretch(1)
 
         preview = QPlainTextEdit("\n".join(lines))
         preview.setReadOnly(True)
@@ -35,19 +45,21 @@ class RunDialog(QDialog):
         extent_label = QLabel("Travel extents:   " + "      ".join(parts))
         extent_label.setObjectName("dro")
 
-        top = QHBoxLayout()
-        top.addWidget(preview, 2)
-        top.addWidget(path_view, 3)
+        body = QHBoxLayout()
+        body.addWidget(preview, 2)
+        body.addWidget(path_view, 3)
 
         layout = QVBoxLayout(self)
-        layout.addLayout(top, 2)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(4)
+        layout.addLayout(top)
+        layout.addLayout(body, 2)
         layout.addWidget(extent_label)
 
         if op.is_threading:
             warn = QLabel(
                 "⚠ THREADING: feed hold is DEFERRED during spindle-synced "
-                "passes —\nthe pass finishes before motion stops. Use the "
-                "machine E-stop for emergencies.")
+                "passes — use the machine E-stop for emergencies.")
             warn.setObjectName("warning")
             layout.addWidget(warn)
 
@@ -83,12 +95,13 @@ class RunDialog(QDialog):
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
         self.console.setFont(QFont("Courier New", 11))
-        self.console.setMaximumHeight(140)
+        self.console.setMinimumHeight(36)      # let a 7" screen squeeze it
+        self.console.setMaximumHeight(100)
         layout.addWidget(self.console, 1)
 
         self.status_label = QLabel(
             "" if controller.is_connected
-            else "Not connected — connect in the main window to run")
+            else "Not connected — connect first to run")
         layout.addWidget(self.status_label)
 
         self.confirm.toggled.connect(self._update_buttons)
@@ -112,6 +125,7 @@ class RunDialog(QDialog):
 
     def on_run(self) -> None:
         self.run_btn.setEnabled(False)
+        self.back_btn.setEnabled(False)     # stop or finish before leaving
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(True)
         self.status_label.setText("running…")
@@ -126,6 +140,7 @@ class RunDialog(QDialog):
 
     def on_finished(self, ok: bool, msg: str) -> None:
         self.status_label.setText(msg)
+        self.back_btn.setEnabled(True)
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
         self._update_buttons()
@@ -136,7 +151,7 @@ class RunDialog(QDialog):
     def on_save(self) -> None:
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save G-code", f"{self.windowTitle().split(' —')[0]}.nc",
+            self, "Save G-code", f"{self.op_title}.nc",
             "G-code (*.nc *.gcode);;All files (*)")
         if path:
             with open(path, "w") as f:

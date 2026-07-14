@@ -1,8 +1,10 @@
 * grbl_turn — conversational lathe GUI for ESP32 GRBL
 
 Pick a lathe operation from the icon grid, enter its parameters, preview
-the generated G-code, and stream it to the controller over USB serial or
-WiFi. Cross-platform: Windows, macOS, Linux (PySide6/Qt6).
+the generated G-code and toolpath, and stream it to the controller over
+USB serial or WiFi. Cross-platform: Windows, macOS, Linux (PySide6/Qt6).
+Single-window UI — the grid, parameter pages, and run page all redraw in
+place (fits a 7" / 800x480 screen).
 
 Operations: external thread / taper / OD turning / facing,
 internal thread / taper / boring, parting.

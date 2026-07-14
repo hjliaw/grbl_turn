@@ -1,45 +1,53 @@
-"""Generic operation parameter dialog: SVG diagram on the left, grouped
-form on the right — the layout of the original ext_thread prototype."""
+"""Operation parameter page: SVG diagram on the left, grouped form on the
+right. Shown inside the main-window stack (single-window UI, sized for
+small screens) instead of a popup dialog."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtSvgWidgets import QSvgWidget
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout,
-                               QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QSpinBox, QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox,
+                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPushButton, QScrollArea, QSpinBox, QVBoxLayout,
+                               QWidget)
 
 from grbl_turn import resource
 from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
-from grbl_turn.ui.run_dialog import RunDialog
 from grbl_turn.units import MM_PER_INCH, Units
 
 
-class OpDialog(QDialog):
-    def __init__(self, op: Operation, controller, machine: MachineProfile,
-                 units: Units, parent=None):
+class OpPage(QWidget):
+    back_requested = Signal()
+    run_requested = Signal(list)     # generated G-code lines
+
+    def __init__(self, op: Operation, machine: MachineProfile, units: Units,
+                 parent=None):
         super().__init__(parent)
         self.op = op
-        self.controller = controller
         self.machine = machine
         self.units = units
-        self.setWindowTitle(f"{op.title} — {units.value}")
         self.widgets: dict[str, object] = {}
+
+        back = QPushButton("◀ Back")
+        back.clicked.connect(self.back_requested)
+        title = QLabel(f"<b>{op.title}</b>")
+        top = QHBoxLayout()
+        top.addWidget(back)
+        top.addSpacing(12)
+        top.addWidget(title)
+        top.addStretch(1)
+        top.addWidget(QLabel(f"Units: {units.value}    "
+                             "X0 = centerline   Z0 = face   Z− into work"))
 
         diagram = QSvgWidget(resource(op.diagram))
         diagram.renderer().setAspectRatioMode(Qt.KeepAspectRatio)
-        diagram.setMinimumSize(320, 320)
-
-        top = QHBoxLayout()
-        top.addWidget(QLabel(f"Units: {units.value}"))
-        top.addStretch(1)
-        convention = QLabel("X0 = centerline   Z0 = face   Z− into work")
-        top.addWidget(convention)
+        diagram.setMinimumSize(240, 240)
 
         # build grouped form
         groups: dict[str, QFormLayout] = {}
-        form_col = QVBoxLayout()
+        form_host = QWidget()
+        form_col = QVBoxLayout(form_host)
         saved = load_op_params(op.key)
         for f in op.fields:
             if f.group not in groups:
@@ -56,11 +64,19 @@ class OpDialog(QDialog):
         form_col.addStretch(1)
         form_col.addWidget(generate)
 
+        # scroll the form so tall operations still fit a 7" screen
+        scroll = QScrollArea()
+        scroll.setWidget(form_host)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
         body = QHBoxLayout()
         body.addWidget(diagram, 1)
-        body.addLayout(form_col, 1)
+        body.addWidget(scroll, 1)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(4)
         layout.addLayout(top)
         layout.addLayout(body)
 
@@ -149,4 +165,4 @@ class OpDialog(QDialog):
                 if f.kind == "pitch_mode":
                     to_save.pop(f.name, None)
         save_op_params(self.op.key, to_save)
-        RunDialog(self.op, lines, self.controller, self).exec()
+        self.run_requested.emit(lines)

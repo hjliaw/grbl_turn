@@ -21,7 +21,9 @@ def main() -> None:
     win = MainWindow()
     if args.sim:
         win.connect_bar.kind.setCurrentIndex(2)
-    win.resize(900, 560)
+    # fill small (7") screens, open comfortably sized on desktops
+    geo = app.primaryScreen().availableGeometry()
+    win.resize(min(900, geo.width()), min(560, geo.height()))
     win.show()
     sys.exit(app.exec())
 

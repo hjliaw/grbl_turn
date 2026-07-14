@@ -96,7 +96,7 @@ FEED_PEN = (QColor(120, 220, 120), 2, Qt.PenStyle.SolidLine)
 class PathView(QWidget):
     def __init__(self, lines: list[str] | None = None, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(320, 240)
+        self.setMinimumSize(260, 120)
         self.segments: list[Segment] = []
         if lines:
             self.set_lines(lines)

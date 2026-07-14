@@ -1,11 +1,13 @@
-"""Main window: connection bar, DRO/status strip, and the 2x4 operation grid
-from the original eznc.ui launcher."""
+"""Main window: connection bar, DRO/status strip, and a page stack —
+the 2x4 operation grid, parameter pages, and the run page all redraw in
+the same window (no popups; sized to work on a 7" screen)."""
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QLabel,
                                QMainWindow, QMessageBox, QPushButton,
-                               QToolButton, QVBoxLayout, QWidget)
+                               QStackedWidget, QToolButton, QVBoxLayout,
+                               QWidget)
 
 from grbl_turn import resource
 from grbl_turn.comms.grbl import GrblController
@@ -13,7 +15,8 @@ from grbl_turn.config import convert_saved_params, settings
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import REGISTRY
 from grbl_turn.ui.connect_widgets import ConnectBar
-from grbl_turn.ui.op_dialog import OpDialog
+from grbl_turn.ui.op_page import OpPage
+from grbl_turn.ui.run_page import RunPage
 from grbl_turn.units import Units
 
 GRID_COLS = 4
@@ -29,6 +32,8 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         layout = QVBoxLayout(central)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(4)
 
         self.connect_bar = ConnectBar()
         self.connect_bar.connect_btn.clicked.connect(self.on_connect)
@@ -36,17 +41,21 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(self._build_status_strip())
 
-        grid = QGridLayout()
+        home = QWidget()
+        grid = QGridLayout(home)
         grid.setSpacing(4)
         for i, op in enumerate(REGISTRY):
             btn = QToolButton()
             btn.setIcon(QIcon(resource(op.icon)))
-            btn.setIconSize(QSize(180, 180))
+            btn.setIconSize(QSize(140, 140))
             btn.setToolTip(op.title)
-            btn.setMinimumSize(200, 200)
+            btn.setMinimumSize(160, 160)
             btn.clicked.connect(lambda checked=False, o=op: self.open_op(o))
             grid.addWidget(btn, i // GRID_COLS, i % GRID_COLS)
-        layout.addLayout(grid, 1)
+
+        self.stack = QStackedWidget()
+        self.stack.addWidget(home)
+        layout.addWidget(self.stack, 1)
 
         self.setCentralWidget(central)
 
@@ -156,8 +165,30 @@ class MainWindow(QMainWindow):
             f"{line}\n\nMotion is locked. Clear the cause, then press "
             "Unlock ($X) or Reset.")
 
+    # -- page-stack navigation --------------------------------------------------
+    def _push(self, page: QWidget) -> None:
+        self.stack.addWidget(page)
+        self.stack.setCurrentWidget(page)
+        # unit switching would silently invalidate values on open pages
+        self.units_combo.setEnabled(False)
+
+    def _pop(self, page: QWidget) -> None:
+        self.stack.removeWidget(page)
+        page.deleteLater()
+        self.stack.setCurrentWidget(self.stack.widget(self.stack.count() - 1))
+        self.units_combo.setEnabled(self.stack.count() == 1)
+
     def open_op(self, op) -> None:
-        OpDialog(op, self.controller, self.machine, self.units, self).exec()
+        page = OpPage(op, self.machine, self.units)
+        page.back_requested.connect(lambda: self._pop(page))
+        page.run_requested.connect(
+            lambda lines, o=op: self.open_run(o, lines))
+        self._push(page)
+
+    def open_run(self, op, lines: list[str]) -> None:
+        page = RunPage(op, lines, self.controller)
+        page.back_requested.connect(lambda: self._pop(page))
+        self._push(page)
 
     def closeEvent(self, event) -> None:
         self.controller.shutdown()
