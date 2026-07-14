@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel,
 
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
+from grbl_turn.ui.path_view import PathView
 
 
 class RunDialog(QDialog):
@@ -15,13 +16,15 @@ class RunDialog(QDialog):
                  parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{op.title} — preview & run")
-        self.resize(700, 640)
+        self.resize(1050, 640)
         self.controller = controller
         self.lines = lines
 
         preview = QPlainTextEdit("\n".join(lines))
         preview.setReadOnly(True)
         preview.setFont(QFont("Courier New", 12))
+
+        path_view = PathView(lines)
 
         ext = extents(lines)
         parts = []
@@ -32,8 +35,12 @@ class RunDialog(QDialog):
         extent_label = QLabel("Travel extents:   " + "      ".join(parts))
         extent_label.setObjectName("dro")
 
+        top = QHBoxLayout()
+        top.addWidget(preview, 2)
+        top.addWidget(path_view, 3)
+
         layout = QVBoxLayout(self)
-        layout.addWidget(preview, 2)
+        layout.addLayout(top, 2)
         layout.addWidget(extent_label)
 
         if op.is_threading:
