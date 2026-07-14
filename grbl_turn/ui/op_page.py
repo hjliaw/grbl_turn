@@ -6,14 +6,15 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox,
-                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QPushButton, QScrollArea, QSpinBox, QVBoxLayout,
+                               QHBoxLayout, QLabel, QMessageBox, QPushButton,
+                               QScrollArea, QScroller, QSpinBox, QVBoxLayout,
                                QWidget)
 
 from grbl_turn import resource
 from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
+from grbl_turn.ui.numpad import TouchNumberEdit
 from grbl_turn.units import MM_PER_INCH, Units
 
 
@@ -58,27 +59,34 @@ class OpPage(QWidget):
             self.widgets[f.name] = widget
             groups[f.group].addRow(self._label(f), widget)
 
-        generate = QPushButton("Generate G-code…")
-        generate.setObjectName("run")
-        generate.clicked.connect(self.on_generate)
         form_col.addStretch(1)
-        form_col.addWidget(generate)
 
-        # scroll the form so tall operations still fit a 7" screen
+        # scroll the form so tall operations still fit a 7" screen;
+        # finger-drag scrolling for the touch screen
         scroll = QScrollArea()
         scroll.setWidget(form_host)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        QScroller.grabGesture(scroll.viewport(),
+                              QScroller.ScrollerGestureType.LeftMouseButtonGesture)
 
         body = QHBoxLayout()
-        body.addWidget(diagram, 1)
-        body.addWidget(scroll, 1)
+        body.addWidget(diagram, 2)
+        body.addWidget(scroll, 3)   # the form needs the width on 800px
+
+        # Generate lives outside the scroll area: always visible
+        generate = QPushButton("Generate G-code…")
+        generate.setObjectName("run")
+        generate.clicked.connect(self.on_generate)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(top)
-        layout.addLayout(body)
+        layout.addLayout(body, 1)
+        layout.addWidget(generate)
 
     def _label(self, f: Field) -> str:
         unit = "in" if self.units is Units.INCH else "mm"
@@ -121,8 +129,8 @@ class OpPage(QWidget):
             w = QSpinBox()
             w.setRange(int(f.minimum), int(f.maximum))
             w.setValue(int(saved) if saved is not None else int(f.default))
-        else:  # dia, len, zpos, feed, angle, pitch -> float line edit
-            w = QLineEdit()
+        else:  # dia, len, zpos, feed, angle, pitch -> numpad-backed edit
+            w = TouchNumberEdit(self._label(f))
             validator = QDoubleValidator(f.minimum, f.maximum, 4, w)
             validator.setNotation(QDoubleValidator.StandardNotation)
             w.setValidator(validator)

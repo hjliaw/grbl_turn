@@ -1,15 +1,19 @@
-"""Preview + run page: shows the generated program, its toolpath and travel
-extents, requires an explicit confirmation, then streams with progress and
-a console. Lives in the main-window stack; Back is locked while streaming."""
+"""Preview + run page: one big view area toggled between the toolpath plot,
+the G-code text, and the comm console (simplest layout for a touch-only
+800x480 screen). Requires an explicit confirmation, then streams with
+progress; Back is locked while streaming."""
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QLabel, QPlainTextEdit,
-                               QProgressBar, QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QHBoxLayout, QLabel,
+                               QPlainTextEdit, QProgressBar, QPushButton,
+                               QScroller, QStackedWidget, QVBoxLayout, QWidget)
 
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
 from grbl_turn.ui.path_view import PathView
+
+PLOT, GCODE, CONSOLE = range(3)
 
 
 class RunPage(QWidget):
@@ -24,17 +28,40 @@ class RunPage(QWidget):
 
         self.back_btn = QPushButton("◀ Back")
         self.back_btn.clicked.connect(self.back_requested)
-        top = QHBoxLayout()
-        top.addWidget(self.back_btn)
-        top.addSpacing(12)
-        top.addWidget(QLabel(f"<b>{op.title} — preview &amp; run</b>"))
-        top.addStretch(1)
+
+        # view toggle: plot / g-code text / console share one big area
+        self.views = QStackedWidget()
+        self.views.addWidget(PathView(lines))
 
         preview = QPlainTextEdit("\n".join(lines))
         preview.setReadOnly(True)
-        preview.setFont(QFont("Courier New", 12))
+        preview.setFont(QFont("Courier New", 13))
+        QScroller.grabGesture(preview.viewport(),
+                              QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+        self.views.addWidget(preview)
 
-        path_view = PathView(lines)
+        self.console = QPlainTextEdit()
+        self.console.setReadOnly(True)
+        self.console.setFont(QFont("Courier New", 12))
+        QScroller.grabGesture(self.console.viewport(),
+                              QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+        self.views.addWidget(self.console)
+
+        self.view_group = QButtonGroup(self)
+        self.view_group.setExclusive(True)
+        top = QHBoxLayout()
+        top.addWidget(self.back_btn)
+        top.addSpacing(8)
+        top.addWidget(QLabel(f"<b>{op.title}</b>"))
+        top.addStretch(1)
+        for idx, name in ((PLOT, "Plot"), (GCODE, "G-code"),
+                          (CONSOLE, "Console")):
+            b = QPushButton(name)
+            b.setCheckable(True)
+            self.view_group.addButton(b, idx)
+            top.addWidget(b)
+        self.view_group.idClicked.connect(self.views.setCurrentIndex)
+        self.view_group.button(PLOT).setChecked(True)
 
         ext = extents(lines)
         parts = []
@@ -45,15 +72,11 @@ class RunPage(QWidget):
         extent_label = QLabel("Travel extents:   " + "      ".join(parts))
         extent_label.setObjectName("dro")
 
-        body = QHBoxLayout()
-        body.addWidget(preview, 2)
-        body.addWidget(path_view, 3)
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(top)
-        layout.addLayout(body, 2)
+        layout.addWidget(self.views, 1)
         layout.addWidget(extent_label)
 
         if op.is_threading:
@@ -61,6 +84,7 @@ class RunPage(QWidget):
                 "⚠ THREADING: feed hold is DEFERRED during spindle-synced "
                 "passes — use the machine E-stop for emergencies.")
             warn.setObjectName("warning")
+            warn.setWordWrap(True)      # keep the page inside 800px
             layout.addWidget(warn)
 
         self.confirm = QCheckBox(
@@ -73,36 +97,29 @@ class RunPage(QWidget):
         self.run_btn.setEnabled(False)
         self.hold_btn = QPushButton("Hold")
         self.resume_btn = QPushButton("Resume")
-        self.stop_btn = QPushButton("STOP (soft reset — not an E-stop)")
+        self.stop_btn = QPushButton("STOP (soft reset)")
         self.stop_btn.setObjectName("stop")
         save_btn = QPushButton("Save .nc…")
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
 
         buttons = QHBoxLayout()
-        buttons.addWidget(self.run_btn)
-        buttons.addWidget(self.hold_btn)
-        buttons.addWidget(self.resume_btn)
-        buttons.addWidget(self.stop_btn)
-        buttons.addStretch(1)
+        buttons.addWidget(self.run_btn, 1)
+        buttons.addWidget(self.hold_btn, 1)
+        buttons.addWidget(self.resume_btn, 1)
+        buttons.addWidget(self.stop_btn, 2)
         buttons.addWidget(save_btn)
         layout.addLayout(buttons)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, len(lines))
-        layout.addWidget(self.progress)
-
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setFont(QFont("Courier New", 11))
-        self.console.setMinimumHeight(36)      # let a 7" screen squeeze it
-        self.console.setMaximumHeight(100)
-        layout.addWidget(self.console, 1)
-
         self.status_label = QLabel(
             "" if controller.is_connected
             else "Not connected — connect first to run")
-        layout.addWidget(self.status_label)
+        bottom = QHBoxLayout()
+        bottom.addWidget(self.progress, 1)
+        bottom.addWidget(self.status_label, 1)
+        layout.addLayout(bottom)
 
         self.confirm.toggled.connect(self._update_buttons)
         self.run_btn.clicked.connect(self.on_run)
@@ -122,6 +139,10 @@ class RunPage(QWidget):
         ready = (self.controller.is_connected and self.confirm.isChecked()
                  and not self.controller.is_streaming)
         self.run_btn.setEnabled(ready)
+
+    def show_view(self, idx: int) -> None:
+        self.view_group.button(idx).setChecked(True)
+        self.views.setCurrentIndex(idx)
 
     def on_run(self) -> None:
         self.run_btn.setEnabled(False)
@@ -143,6 +164,8 @@ class RunPage(QWidget):
         self.back_btn.setEnabled(True)
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
+        if not ok:
+            self.show_view(CONSOLE)     # surface what went wrong
         self._update_buttons()
 
     def on_log(self, direction: str, text: str) -> None:

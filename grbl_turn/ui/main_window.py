@@ -2,12 +2,12 @@
 the 2x4 operation grid, parameter pages, and the run page all redraw in
 the same window (no popups; sized to work on a 7" screen)."""
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QLabel,
                                QMainWindow, QMessageBox, QPushButton,
-                               QStackedWidget, QToolButton, QVBoxLayout,
-                               QWidget)
+                               QSizePolicy, QStackedWidget, QToolButton,
+                               QVBoxLayout, QWidget)
 
 from grbl_turn import resource
 from grbl_turn.comms.grbl import GrblController
@@ -20,6 +20,12 @@ from grbl_turn.ui.run_page import RunPage
 from grbl_turn.units import Units
 
 GRID_COLS = 4
+
+STATE_COLORS = {"Idle": "rgb(120, 220, 120)", "Run": "rgb(120, 200, 255)",
+                "Jog": "rgb(120, 200, 255)", "Home": "rgb(120, 200, 255)",
+                "Hold": "rgb(255, 200, 60)", "Door": "rgb(255, 200, 60)",
+                "Alarm": "rgb(255, 90, 90)"}
+NEUTRAL = "rgb(200, 200, 200)"
 
 
 class MainWindow(QMainWindow):
@@ -43,13 +49,16 @@ class MainWindow(QMainWindow):
 
         home = QWidget()
         grid = QGridLayout(home)
-        grid.setSpacing(4)
+        grid.setSpacing(6)
         for i, op in enumerate(REGISTRY):
             btn = QToolButton()
             btn.setIcon(QIcon(resource(op.icon)))
-            btn.setIconSize(QSize(140, 140))
-            btn.setToolTip(op.title)
-            btn.setMinimumSize(160, 160)
+            btn.setIconSize(QSize(110, 110))
+            btn.setText(op.title)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+            btn.setMinimumSize(150, 150)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding,
+                              QSizePolicy.Policy.Expanding)
             btn.clicked.connect(lambda checked=False, o=op: self.open_op(o))
             grid.addWidget(btn, i // GRID_COLS, i % GRID_COLS)
 
@@ -87,7 +96,8 @@ class MainWindow(QMainWindow):
         self.hold_btn = QPushButton("Hold")
         self.resume_btn = QPushButton("Resume")
         self.reset_btn = QPushButton("Reset")
-        self.unlock_btn = QPushButton("Unlock ($X)")
+        self.unlock_btn = QPushButton("Unlock")
+        self.unlock_btn.setToolTip("$X — clear an alarm lock")
         self.hold_btn.clicked.connect(self.controller.feed_hold)
         self.resume_btn.clicked.connect(self.controller.resume)
         self.reset_btn.clicked.connect(self.controller.soft_reset)
@@ -100,9 +110,8 @@ class MainWindow(QMainWindow):
         strip.addWidget(self.z_label)
         strip.addWidget(self.rpm_label)
         strip.addStretch(1)
-        strip.addWidget(QLabel("Units:"))
         strip.addWidget(self.units_combo)
-        strip.addSpacing(20)
+        strip.addSpacing(8)
         for b in (self.hold_btn, self.resume_btn, self.reset_btn,
                   self.unlock_btn):
             strip.addWidget(b)
@@ -134,21 +143,25 @@ class MainWindow(QMainWindow):
         self.state_label.setText("connecting…")
         self.controller.connect_transport(transport)
 
+    def _set_state(self, text: str, color: str = NEUTRAL) -> None:
+        self.state_label.setText(text)
+        self.state_label.setStyleSheet(f"color: {color};")
+
     def on_connected(self, desc: str) -> None:
-        self.state_label.setText(f"connected ({desc})")
+        self._set_state("connected")
         self.connect_bar.connect_btn.setText("Disconnect")
         self._set_conn_ui(True)
 
     def on_disconnected(self, reason: str) -> None:
-        self.state_label.setText("disconnected"
-                                 + (f" — {reason}" if reason else ""))
+        self._set_state("disconnected" + (f" — {reason}" if reason else ""))
         self.connect_bar.connect_btn.setText("Connect")
         self._set_conn_ui(False)
         for label in (self.x_label, self.z_label, self.rpm_label):
             label.setText(label.text().split()[0] + " —")
 
     def on_status(self, st: dict) -> None:
-        self.state_label.setText(st.get("state", "?"))
+        state = st.get("state", "?")
+        self._set_state(state, STATE_COLORS.get(state.split(":")[0], NEUTRAL))
         pos = st.get("WPos") or st.get("MPos")
         if pos and len(pos) >= 3:
             x_radius = pos[0] / 2.0 if self.machine.x_words_are_diameter \
@@ -159,7 +172,7 @@ class MainWindow(QMainWindow):
             self.rpm_label.setText(f"S {st['rpm']:.0f}")
 
     def on_alarm(self, line: str) -> None:
-        self.state_label.setText(line)
+        self._set_state(line, STATE_COLORS["Alarm"])
         QMessageBox.critical(
             self, "ALARM",
             f"{line}\n\nMotion is locked. Clear the cause, then press "

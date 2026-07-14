@@ -3,8 +3,11 @@
 Pick a lathe operation from the icon grid, enter its parameters, preview
 the generated G-code and toolpath, and stream it to the controller over
 USB serial or WiFi. Cross-platform: Windows, macOS, Linux (PySide6/Qt6).
-Single-window UI — the grid, parameter pages, and run page all redraw in
-place (fits a 7" / 800x480 screen).
+Single-window UI designed for a touch-only 7" (800x480) screen — the
+grid, parameter pages, and run page all redraw in place; number fields
+open an on-screen keypad; the run page toggles between toolpath plot,
+G-code text, and the comm console. Goes fullscreen automatically on
+small displays (or with =--fullscreen=).
 
 Operations: external thread / taper / OD turning / facing,
 internal thread / taper / boring, parting.
