@@ -1,0 +1,127 @@
+"""Single-point threading, external and internal.
+
+Requires spindle-synchronized motion in the firmware (spindle encoder).
+Two emitters, selected by the machine profile:
+  - G76 canned cycle (grblHAL / LinuxCNC-style words)
+  - explicit G33 passes computed by the app (fallback; also useful to read
+    to see exactly what G76 will do)
+
+Both use the same degressive infeed math from passes.thread_infeeds().
+"""
+
+from grbl_turn.gcode import footer, header
+from grbl_turn.machine import MachineProfile
+from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
+from grbl_turn.ops.passes import flank_offset, thread_infeeds
+from grbl_turn.units import MM_PER_INCH, Units, fmt
+
+# thread depth as a fraction of pitch for 60 deg threads (UN/ISO shop values)
+EXT_DEPTH_FACTOR = 0.6134
+INT_DEPTH_FACTOR = 0.5413
+
+
+def _fields(internal: bool) -> list[Field]:
+    dia_field = (
+        Field("dia", "Bore diameter (thread minor)", "dia", 0.4056,
+              group="X (cross-slide)",
+              tooltip="Bore to the thread minor diameter before threading")
+        if internal else
+        Field("dia", "Major diameter (thread OD)", "dia", 0.500,
+              group="X (cross-slide)")
+    )
+    return [
+        dia_field,
+        Field("total_depth", "Total depth (0=auto)", "len", 0.0,
+              group="X (cross-slide)", minimum=0.0,
+              tooltip="Radial thread depth; 0 = 0.6134x pitch (ext) or "
+                      "0.5413x pitch (int) for 60 deg threads"),
+        Field("first_depth", "First pass depth", "len", 0.003,
+              group="X (cross-slide)"),
+        Field("min_depth", "Min pass depth", "len", 0.001,
+              group="X (cross-slide)"),
+        Field("spring", "Spring passes", "int", 1, group="X (cross-slide)",
+              minimum=0, maximum=9),
+        Field("pitch_val", "Pitch value", "len", 20.0, group="Z (bed/leadscrew)",
+              tooltip="Interpreted per the pitch type below"),
+        Field("pitch_mode", "Pitch type", "choice", "TPI",
+              group="Z (bed/leadscrew)", choices=["TPI", "pitch (units/rev)"]),
+        Field("length", "Thread length (from face)", "len", 0.500,
+              group="Z (bed/leadscrew)"),
+        Field("lead_in", "Lead-in (0=auto)", "len", 0.0,
+              group="Z (bed/leadscrew)", minimum=0.0,
+              tooltip="Sync-up distance in front of the face; 0 = 2x pitch"),
+        Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
+              choices=["0", "29.5", "30"]),
+        Field("clearance", "Clearance (radial)", "len", 0.020, group="Cutting"),
+    ] + spindle_fields(default_rpm=200)
+
+
+def _pitch(p: dict, units: Units) -> float:
+    if p["pitch_mode"] == "TPI":
+        per_inch = 1.0 / p["pitch_val"]
+        return per_inch * MM_PER_INCH if units is Units.MM else per_inch
+    return p["pitch_val"]
+
+
+def _generate(p: dict, machine: MachineProfile, units: Units,
+              internal: bool) -> list[str]:
+    pitch = _pitch(p, units)
+    depth = p["total_depth"] or pitch * (INT_DEPTH_FACTOR if internal
+                                         else EXT_DEPTH_FACTOR)
+    lead_in = p["lead_in"] or 2.0 * pitch
+    clear = p["clearance"]
+    angle = float(p["compound"])
+    r = p["dia"] / 2.0                       # major radius (ext) / minor (int)
+    inward = -1.0 if internal else 1.0       # retract direction off the thread
+    drive_r = r + inward * clear             # cycle start / retract radius
+    if internal and drive_r <= 0:
+        raise ValueError("clearance too large for the bore")
+    z_end = -p["length"]
+
+    title = "Internal threading" if internal else "External threading"
+    kind = "TPI" if p["pitch_mode"] == "TPI" else "units/rev"
+    lines = header(
+        title,
+        [f"dia {p['dia']}, pitch {p['pitch_val']:g} {kind}, length {p['length']}",
+         f"depth {depth:.4f} radial, first {p['first_depth']}, "
+         f"compound {angle:g} deg",
+         "REQUIRES spindle sync (encoder); feed hold is DEFERRED during passes"],
+        units)
+    lines += spindle_preamble(p)
+    lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)} "
+                 f"Z{fmt(lead_in, units)}")
+
+    if machine.has_g76:
+        # I: thread peak offset from the drive line (negative = external)
+        i_word = -inward * clear
+        lines.append(
+            f"G76 P{fmt(pitch, units)} Z{fmt(z_end, units)} "
+            f"I{fmt(i_word, units)} J{fmt(p['first_depth'], units)} "
+            f"R2.0 K{fmt(depth, units)} Q{angle:g} H{int(p['spring'])}")
+    else:
+        for d in thread_infeeds(depth, p["first_depth"], p["min_depth"],
+                                int(p["spring"])):
+            z_start = lead_in - flank_offset(d, angle)
+            lines.append(f"G0 Z{fmt(z_start, units)}")
+            lines.append(f"G0 X{fmt(machine.x_word(r - inward * d), units)}")
+            lines.append(f"G33 Z{fmt(z_end, units)} K{fmt(pitch, units)}")
+            lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)}")
+    lines += footer(p.get("app_spindle", False), machine.x_word(drive_r),
+                    lead_in, units)
+    return lines
+
+
+def generate_ext(p, machine, units):
+    return _generate(p, machine, units, internal=False)
+
+
+def generate_int(p, machine, units):
+    return _generate(p, machine, units, internal=True)
+
+
+OP_EXT = Operation("ext_thread", "External thread", "ext_thread2.svg",
+                   "ext_thread2_dim.svg", _fields(False), generate_ext,
+                   is_threading=True)
+OP_INT = Operation("int_thread", "Internal thread", "int_thread2.svg",
+                   "int_thread2.svg", _fields(True), generate_int,
+                   is_threading=True)
