@@ -2,6 +2,8 @@
 
 Coordinates are drawn as emitted (X = radius for stock GRBL), Z increasing
 to the right — the part face sits at the right edge and cuts run leftward.
++X points down, matching a hobby lathe with the tool in front of the
+centerline: the tool sits below the work in the view, as the operator sees it.
 G76 canned cycles are expanded into their individual passes with the same
 degressive-infeed math the G33 fallback uses, so the thread passes are
 visible even when the firmware does the looping.
@@ -139,7 +141,7 @@ class PathView(QWidget):
             return off_z + (z - zmin) * sz
 
         def py(x: float) -> float:
-            return off_x + (xmax - x) * sx
+            return off_x + (x - xmin) * sx     # +X points down (tool in front)
 
         # spindle centerline (X0)
         if xmin <= 0.0 <= xmax:
@@ -172,4 +174,4 @@ class PathView(QWidget):
             y += 16
         p.setPen(QColor(140, 140, 140))
         p.drawText(rect.width() - 60, rect.height() - 8, "+Z →")
-        p.drawText(10, rect.height() - 8, "X↑ (radius)")
+        p.drawText(10, rect.height() - 8, "X↓ (radius)")
