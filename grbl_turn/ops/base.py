@@ -17,6 +17,13 @@ from grbl_turn.units import Units
 #   choice - combo box (choices list)
 #   bool   - checkbox
 #   rpm    - integer spindle speed
+#   pitch      - thread pitch value; never unit-converted (TPI or in/rev in
+#                inch mode, always mm/rev in mm mode)
+#   pitch_mode - pitch-type combo; choices apply to inch mode only, mm mode
+#                shows a fixed "mm/rev"
+
+# kinds whose values are lengths and get converted when the units change
+DIMENSIONAL_KINDS = ("dia", "len", "zpos", "feed")
 
 
 @dataclass
@@ -30,6 +37,7 @@ class Field:
     maximum: float = 10000.0
     tooltip: str = ""
     choices: list[str] = field(default_factory=list)
+    default_mm: float | None = None   # mm-mode default for kind "pitch"
 
 
 @dataclass

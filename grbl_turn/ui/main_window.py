@@ -3,16 +3,18 @@ from the original eznc.ui launcher."""
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QMainWindow,
-                               QMessageBox, QPushButton, QToolButton,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QLabel,
+                               QMainWindow, QMessageBox, QPushButton,
+                               QToolButton, QVBoxLayout, QWidget)
 
 from grbl_turn import resource
 from grbl_turn.comms.grbl import GrblController
+from grbl_turn.config import convert_saved_params, settings
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import REGISTRY
 from grbl_turn.ui.connect_widgets import ConnectBar
 from grbl_turn.ui.op_dialog import OpDialog
+from grbl_turn.units import Units
 
 GRID_COLS = 4
 
@@ -23,6 +25,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("grbl_turn")
         self.controller = GrblController(self)
         self.machine = MachineProfile()
+        self.units = Units(str(settings().value("units", Units.INCH.value)))
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -64,6 +67,14 @@ class MainWindow(QMainWindow):
         self.rpm_label = QLabel("S —")
         self.rpm_label.setObjectName("dro")
 
+        self.units_combo = QComboBox()
+        self.units_combo.addItems([u.value for u in Units])
+        self.units_combo.setCurrentText(self.units.value)
+        self.units_combo.setToolTip(
+            "Saved parameters are converted when switching units "
+            "(thread pitch excepted: TPI/in per rev vs mm per rev)")
+        self.units_combo.currentTextChanged.connect(self.on_units_changed)
+
         self.hold_btn = QPushButton("Hold")
         self.resume_btn = QPushButton("Resume")
         self.reset_btn = QPushButton("Reset")
@@ -80,6 +91,9 @@ class MainWindow(QMainWindow):
         strip.addWidget(self.z_label)
         strip.addWidget(self.rpm_label)
         strip.addStretch(1)
+        strip.addWidget(QLabel("Units:"))
+        strip.addWidget(self.units_combo)
+        strip.addSpacing(20)
         for b in (self.hold_btn, self.resume_btn, self.reset_btn,
                   self.unlock_btn):
             strip.addWidget(b)
@@ -91,6 +105,14 @@ class MainWindow(QMainWindow):
             b.setEnabled(connected)
 
     # -- slots -----------------------------------------------------------------
+    def on_units_changed(self, text: str) -> None:
+        new = Units(text)
+        if new is self.units:
+            return
+        convert_saved_params(self.units, new)
+        self.units = new
+        settings().setValue("units", new.value)
+
     def on_connect(self) -> None:
         if self.controller.is_connected:
             self.controller.disconnect_transport()
@@ -135,7 +157,7 @@ class MainWindow(QMainWindow):
             "Unlock ($X) or Reset.")
 
     def open_op(self, op) -> None:
-        OpDialog(op, self.controller, self.machine, self).exec()
+        OpDialog(op, self.controller, self.machine, self.units, self).exec()
 
     def closeEvent(self, event) -> None:
         self.controller.shutdown()

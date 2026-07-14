@@ -27,7 +27,10 @@ curl -sSL https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 - Dialogs take *diameters*; emitted X words are *radii* (stock GRBL).
   If your firmware runs lathe diameter mode, set
   =x_words_are_diameter=True= in =grbl_turn/machine.py=.
-- Feeds are units/min (G94); programs declare G20/G21 from the unit combo.
+- Units (inch/mm) are selected on the main page; programs declare
+  G20/G21 accordingly. Switching units converts all saved parameters
+  (diameters, lengths, feeds) — except thread pitch, which is entered
+  as TPI or a custom in/rev value in inch mode, and as mm/rev in mm mode.
 - The app never starts the spindle unless "App starts spindle (M3)" is
   checked — otherwise start it yourself before pressing Run.
 

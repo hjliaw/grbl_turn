@@ -13,7 +13,7 @@ from grbl_turn.gcode import footer, header
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import Field, Operation, spindle_fields, spindle_preamble
 from grbl_turn.ops.passes import flank_offset, thread_infeeds
-from grbl_turn.units import MM_PER_INCH, Units, fmt
+from grbl_turn.units import Units, fmt
 
 # thread depth as a fraction of pitch for 60 deg threads (UN/ISO shop values)
 EXT_DEPTH_FACTOR = 0.6134
@@ -41,10 +41,12 @@ def _fields(internal: bool) -> list[Field]:
               group="X (cross-slide)"),
         Field("spring", "Spring passes", "int", 1, group="X (cross-slide)",
               minimum=0, maximum=9),
-        Field("pitch_val", "Pitch value", "len", 20.0, group="Z (bed/leadscrew)",
-              tooltip="Interpreted per the pitch type below"),
-        Field("pitch_mode", "Pitch type", "choice", "TPI",
-              group="Z (bed/leadscrew)", choices=["TPI", "pitch (units/rev)"]),
+        Field("pitch_val", "Pitch", "pitch", 20.0, group="Z (bed/leadscrew)",
+              default_mm=1.5,
+              tooltip="Inch mode: TPI or in/rev per the type below; "
+                      "mm mode: mm/rev"),
+        Field("pitch_mode", "Pitch type", "pitch_mode", "TPI",
+              group="Z (bed/leadscrew)", choices=["TPI", "custom (in/rev)"]),
         Field("length", "Thread length (from face)", "len", 0.500,
               group="Z (bed/leadscrew)"),
         Field("lead_in", "Lead-in (0=auto)", "len", 0.0,
@@ -57,10 +59,11 @@ def _fields(internal: bool) -> list[Field]:
 
 
 def _pitch(p: dict, units: Units) -> float:
+    if units is Units.MM:
+        return p["pitch_val"]           # always mm/rev in mm mode
     if p["pitch_mode"] == "TPI":
-        per_inch = 1.0 / p["pitch_val"]
-        return per_inch * MM_PER_INCH if units is Units.MM else per_inch
-    return p["pitch_val"]
+        return 1.0 / p["pitch_val"]
+    return p["pitch_val"]               # custom: in/rev
 
 
 def _generate(p: dict, machine: MachineProfile, units: Units,
@@ -79,7 +82,10 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     z_end = -p["length"]
 
     title = "Internal threading" if internal else "External threading"
-    kind = "TPI" if p["pitch_mode"] == "TPI" else "units/rev"
+    if units is Units.MM:
+        kind = "mm/rev"
+    else:
+        kind = "TPI" if p["pitch_mode"] == "TPI" else "in/rev"
     lines = header(
         title,
         [f"dia {p['dia']}, pitch {p['pitch_val']:g} {kind}, length {p['length']}",

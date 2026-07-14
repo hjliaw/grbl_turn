@@ -12,7 +12,7 @@ FIELDS = [
     Field("total_depth", "Total depth (Z)", "len", 0.020,
           group="Z (bed/leadscrew)", tooltip="Total material removed off the face"),
     Field("doc", "Depth per pass (Z)", "len", 0.010, group="Z (bed/leadscrew)"),
-    Field("feed", "Feed (units/min)", "feed", 3.0, group="Cutting"),
+    Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
 ] + spindle_fields()
 

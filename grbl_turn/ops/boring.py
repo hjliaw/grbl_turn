@@ -18,7 +18,7 @@ FIELDS = [
           group="X (cross-slide)", minimum=0.0),
     Field("length", "Bore depth (from face)", "len", 0.500,
           group="Z (bed/leadscrew)"),
-    Field("feed", "Feed (units/min)", "feed", 2.0, group="Cutting"),
+    Field("feed", "Feed", "feed", 2.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.020, group="Cutting",
           tooltip="Radial pull-back off the wall before retracting in Z"),
 ] + spindle_fields()

@@ -14,7 +14,7 @@ FIELDS = [
           group="Z (bed/leadscrew)",
           tooltip="Distance from the face to the LEFT side of the blade;\n"
                   "the cut happens at Z-value"),
-    Field("feed", "Feed (units/min)", "feed", 1.0, group="Cutting"),
+    Field("feed", "Feed", "feed", 1.0, group="Cutting"),
     Field("peck", "Peck depth (radial, 0=off)", "len", 0.050, group="Cutting",
           minimum=0.0, tooltip="Retract briefly after each peck to break chips"),
     Field("retract", "Peck retract", "len", 0.010, group="Cutting", minimum=0.0),

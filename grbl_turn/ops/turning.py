@@ -16,7 +16,7 @@ FIELDS = [
           tooltip="Left for the final pass; 0 = no separate finish pass"),
     Field("length", "Length (from face)", "len", 0.750, group="Z (bed/leadscrew)",
           tooltip="Cut runs from Z0 to Z-length"),
-    Field("feed", "Feed (units/min)", "feed", 3.0, group="Cutting"),
+    Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting",
           tooltip="Radial retract above the work and Z gap in front of the face"),
 ] + spindle_fields()

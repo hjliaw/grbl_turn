@@ -9,36 +9,30 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout,
                                QMessageBox, QPushButton, QSpinBox, QVBoxLayout)
 
 from grbl_turn import resource
-from grbl_turn.config import load_op_params, save_op_params, settings
+from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
-from grbl_turn.ops.base import Field, Operation
+from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
 from grbl_turn.ui.run_dialog import RunDialog
-from grbl_turn.units import Units
+from grbl_turn.units import MM_PER_INCH, Units
 
 
 class OpDialog(QDialog):
     def __init__(self, op: Operation, controller, machine: MachineProfile,
-                 parent=None):
+                 units: Units, parent=None):
         super().__init__(parent)
         self.op = op
         self.controller = controller
         self.machine = machine
-        self.setWindowTitle(op.title)
+        self.units = units
+        self.setWindowTitle(f"{op.title} — {units.value}")
         self.widgets: dict[str, object] = {}
 
         diagram = QSvgWidget(resource(op.diagram))
         diagram.renderer().setAspectRatioMode(Qt.KeepAspectRatio)
         diagram.setMinimumSize(320, 320)
 
-        # unit selector
-        self.units_combo = QComboBox()
-        self.units_combo.addItems([u.value for u in Units])
-        last_units = str(settings().value("units", Units.INCH.value))
-        self.units_combo.setCurrentText(last_units)
-
         top = QHBoxLayout()
-        top.addWidget(QLabel("Units:"))
-        top.addWidget(self.units_combo)
+        top.addWidget(QLabel(f"Units: {units.value}"))
         top.addStretch(1)
         convention = QLabel("X0 = centerline   Z0 = face   Z− into work")
         top.addWidget(convention)
@@ -54,7 +48,7 @@ class OpDialog(QDialog):
                 form_col.addWidget(box)
             widget = self._make_widget(f, saved.get(f.name))
             self.widgets[f.name] = widget
-            groups[f.group].addRow(f.label, widget)
+            groups[f.group].addRow(self._label(f), widget)
 
         generate = QPushButton("Generate G-code…")
         generate.setObjectName("run")
@@ -70,11 +64,39 @@ class OpDialog(QDialog):
         layout.addLayout(top)
         layout.addLayout(body)
 
+    def _label(self, f: Field) -> str:
+        unit = "in" if self.units is Units.INCH else "mm"
+        if f.kind in ("dia", "len", "zpos"):
+            return f"{f.label} [{unit}]"
+        if f.kind == "feed":
+            return f"{f.label} [{unit}/min]"
+        if f.kind == "pitch" and self.units is Units.MM:
+            return f"{f.label} [mm/rev]"
+        return f.label
+
+    def _float_default(self, f: Field) -> float:
+        """Field defaults are written in inches; adapt them to mm mode."""
+        if self.units is Units.MM:
+            if f.kind == "pitch":
+                return f.default_mm if f.default_mm is not None else f.default
+            if f.kind in DIMENSIONAL_KINDS:
+                return round(f.default * MM_PER_INCH, 6)
+        return f.default
+
     def _make_widget(self, f: Field, saved):
         if f.kind == "bool":
             w = QCheckBox()
             w.setChecked(saved in ("true", "True", True)
                          if saved is not None else bool(f.default))
+        elif f.kind == "pitch_mode":
+            w = QComboBox()
+            if self.units is Units.INCH:
+                w.addItems(f.choices)
+                if saved is not None:
+                    w.setCurrentText(str(saved))   # no-op if saved was mm/rev
+            else:
+                w.addItem("mm/rev")
+                w.setEnabled(False)
         elif f.kind == "choice":
             w = QComboBox()
             w.addItems(f.choices)
@@ -83,13 +105,14 @@ class OpDialog(QDialog):
             w = QSpinBox()
             w.setRange(int(f.minimum), int(f.maximum))
             w.setValue(int(saved) if saved is not None else int(f.default))
-        else:  # dia, len, zpos, feed, angle -> float line edit
+        else:  # dia, len, zpos, feed, angle, pitch -> float line edit
             w = QLineEdit()
             validator = QDoubleValidator(f.minimum, f.maximum, 4, w)
             validator.setNotation(QDoubleValidator.StandardNotation)
             w.setValidator(validator)
             w.setAlignment(Qt.AlignRight)
-            w.setText(str(saved) if saved is not None else str(f.default))
+            w.setText(str(saved) if saved is not None
+                      else str(self._float_default(f)))
         if f.tooltip:
             w.setToolTip(f.tooltip)
         return w
@@ -100,7 +123,7 @@ class OpDialog(QDialog):
             w = self.widgets[f.name]
             if f.kind == "bool":
                 params[f.name] = w.isChecked()
-            elif f.kind == "choice":
+            elif f.kind in ("choice", "pitch_mode"):
                 params[f.name] = w.currentText()
             elif f.kind in ("int", "rpm"):
                 params[f.name] = w.value()
@@ -112,13 +135,18 @@ class OpDialog(QDialog):
         return params
 
     def on_generate(self) -> None:
-        units = Units(self.units_combo.currentText())
         try:
             params = self.collect_params()
-            lines = self.op.generate(params, self.machine, units)
+            lines = self.op.generate(params, self.machine, self.units)
         except ValueError as exc:
             QMessageBox.warning(self, "Invalid parameters", str(exc))
             return
-        save_op_params(self.op.key, params)
-        settings().setValue("units", units.value)
+        to_save = dict(params)
+        if self.units is Units.MM:
+            # keep the inch-mode pitch type (TPI/custom); mm mode shows a
+            # fixed "mm/rev" placeholder that must not overwrite it
+            for f in self.op.fields:
+                if f.kind == "pitch_mode":
+                    to_save.pop(f.name, None)
+        save_op_params(self.op.key, to_save)
         RunDialog(self.op, lines, self.controller, self).exec()

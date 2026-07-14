@@ -34,7 +34,7 @@ def _fields(internal: bool) -> list[Field]:
               group="Z (bed/leadscrew)"),
         Field("doc", "Depth per pass (radial)", "len", 0.020,
               group="X (cross-slide)"),
-        Field("feed", "Feed (units/min)", "feed", 3.0, group="Cutting"),
+        Field("feed", "Feed", "feed", 3.0, group="Cutting"),
         Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
     ] + spindle_fields()
 
