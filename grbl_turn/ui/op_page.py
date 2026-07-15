@@ -31,6 +31,7 @@ class OpPage(QWidget):
         self.widgets: dict[str, object] = {}
 
         back = QPushButton("◀ Back")
+        back.setObjectName("back")
         back.clicked.connect(self.back_requested)
         title = QLabel(f"<b>{op.title}</b>")
         top = QHBoxLayout()

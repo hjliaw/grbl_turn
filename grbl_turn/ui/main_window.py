@@ -3,6 +3,7 @@ grid, the device (connection + machine control) page, parameter pages,
 and the run page all redraw in the same window (no popups; sized to
 work on a 7" screen)."""
 
+from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QLabel,
                                QMainWindow, QMessageBox, QPushButton,
@@ -85,11 +86,11 @@ class MainWindow(QMainWindow):
         strip = QHBoxLayout()
         self.state_label = QLabel("disconnected")
         self.state_label.setObjectName("state")
-        self.x_label = QLabel("X —")
+        self.x_label = QLabel("X ?")
         self.x_label.setObjectName("dro")
-        self.z_label = QLabel("Z —")
+        self.z_label = QLabel("Z ?")
         self.z_label.setObjectName("dro")
-        self.rpm_label = QLabel("S —")
+        self.rpm_label = QLabel("S ?")
         self.rpm_label.setObjectName("dro")
 
         self.units_combo = QComboBox()
@@ -100,7 +101,8 @@ class MainWindow(QMainWindow):
             "(thread pitch excepted: TPI/in per rev vs mm per rev)")
         self.units_combo.currentTextChanged.connect(self.on_units_changed)
 
-        self.device_btn = QPushButton("Device…")
+        self.device_btn = QPushButton(QIcon(resource("cable.svg")), "")
+        self.device_btn.setIconSize(QSize(28, 28))
         self.device_btn.setToolTip("Connection and machine controls")
         self.device_btn.clicked.connect(
             lambda: self._push(self.connect_page))
@@ -128,6 +130,7 @@ class MainWindow(QMainWindow):
         page = QWidget()
 
         back = QPushButton("◀ Back")
+        back.setObjectName("back")
         back.clicked.connect(lambda: self._pop(self.connect_page))
         title = QLabel("<b>Device</b>")
         top = QHBoxLayout()
@@ -160,7 +163,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(top)
+        layout.addSpacing(20)
         layout.addWidget(self.connect_bar)
+        layout.addSpacing(20)
         layout.addLayout(controls)
         layout.addStretch(1)
         return page
@@ -206,7 +211,7 @@ class MainWindow(QMainWindow):
         self.connect_bar.connect_btn.setText("Connect")
         self._set_conn_ui(False)
         for label in (self.x_label, self.z_label, self.rpm_label):
-            label.setText(label.text().split()[0] + " —")
+            label.setText(label.text().split()[0] + " ?")
 
     def on_setting(self, number: int, value: str) -> None:
         if number == 13:   # $13: report positions in inches (1) or mm (0)

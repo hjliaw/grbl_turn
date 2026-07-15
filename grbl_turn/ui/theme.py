@@ -113,6 +113,9 @@ QPushButton#run {
     font-weight: bold;
     min-height: 36px;
 }
+QPushButton#back {
+    background-color: rgb(30, 100, 30);
+}
 QPushButton#numpad, QPushButton#numpadok {
     font-size: 22px;
     min-height: 40px;

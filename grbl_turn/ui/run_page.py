@@ -3,12 +3,13 @@ the G-code text, and the comm console (simplest layout for a touch-only
 800x480 screen). Requires an explicit confirmation, then streams with
 progress; Back is locked while streaming."""
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QHBoxLayout, QLabel,
                                QPlainTextEdit, QProgressBar, QPushButton,
                                QScroller, QStackedWidget, QVBoxLayout, QWidget)
 
+from grbl_turn import resource
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
 from grbl_turn.ui.path_view import PathView
@@ -27,6 +28,7 @@ class RunPage(QWidget):
         self.op_title = op.title
 
         self.back_btn = QPushButton("◀ Back")
+        self.back_btn.setObjectName("back")
         self.back_btn.clicked.connect(self.back_requested)
 
         # view toggle: plot / g-code text / console share one big area
@@ -55,9 +57,12 @@ class RunPage(QWidget):
         top.addSpacing(8)
         top.addWidget(QLabel(f"<b>{op.title}</b>"))
         top.addStretch(1)
-        for idx, name in ((PLOT, "Plot"), (GCODE, "G-code"),
-                          (CONSOLE, "Console")):
-            b = QPushButton(name)
+        for idx, name, icon in ((PLOT, "Plot", "plot.svg"),
+                                (GCODE, "G-code", "list.svg"),
+                                (CONSOLE, "Console", "terminal.svg")):
+            b = QPushButton(QIcon(resource(icon)), "")
+            b.setIconSize(QSize(28, 28))
+            b.setToolTip(name)
             b.setCheckable(True)
             self.view_group.addButton(b, idx)
             top.addWidget(b)
