@@ -12,6 +12,7 @@ from grbl_turn import resource
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
 from grbl_turn.ui.path_view import PathView, segment_extents
+from grbl_turn.units import Units
 
 PLOT, GCODE, CONSOLE = range(3)
 
@@ -20,7 +21,7 @@ class RunPage(QWidget):
     back_requested = Signal()
 
     def __init__(self, op: Operation, lines: list[str], controller,
-                 parent=None):
+                 units: Units, parent=None):
         super().__init__(parent)
         self.controller = controller
         self.lines = lines
@@ -77,11 +78,9 @@ class RunPage(QWidget):
 
         # segments include the passes G76 will cut; word-scanning misses them
         ext = segment_extents(self.path_view.segments) or extents(lines)
-        parts = []
-        if "X" in ext:
-            parts.append(f"X {ext['X'][0]:g} … {ext['X'][1]:g}")
-        if "Z" in ext:
-            parts.append(f"Z {ext['Z'][0]:g} … {ext['Z'][1]:g}")
+        dec = units.display_decimals
+        parts = [f"{axis} {lo:.{dec}f} … {hi:.{dec}f}"
+                 for axis, (lo, hi) in ext.items()]
         extent_label = QLabel("Travel extents:   " + "      ".join(parts))
         extent_label.setObjectName("dro")
 

@@ -248,7 +248,7 @@ class MainWindow(QMainWindow):
             self.rpm_label.setText(f"S {st['rpm']:.0f} RPM")
 
     def _show_xz(self, x_dia: float, z: float) -> None:
-        dec = self.units.decimals
+        dec = self.units.display_decimals
         unit = "in" if self.units is Units.INCH else "mm"
         self.x_label.setText(f"X⌀ {x_dia:.{dec}f} {unit}")
         self.z_label.setText(f"Z {z:.{dec}f} {unit}")
@@ -306,7 +306,7 @@ class MainWindow(QMainWindow):
         self._push(page)
 
     def open_run(self, op, lines: list[str]) -> None:
-        page = RunPage(op, lines, self.controller)
+        page = RunPage(op, lines, self.controller, self.units)
         page.back_requested.connect(lambda: self._pop(page))
         page.path_view.sim_moved.connect(self.on_sim_moved)
         page.path_view.sim_stopped.connect(self.on_sim_stopped)

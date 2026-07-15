@@ -16,7 +16,13 @@ class Units(Enum):
 
     @property
     def decimals(self) -> int:
+        """G-code output precision."""
         return 4 if self is Units.INCH else 3
+
+    @property
+    def display_decimals(self) -> int:
+        """DRO readouts: one digit coarser than the G-code."""
+        return 3 if self is Units.INCH else 2
 
 
 def fmt(value: float, units: Units) -> str:
