@@ -4,7 +4,7 @@ import pytest
 from PySide6.QtCore import QSettings
 
 import grbl_turn.config as config
-from grbl_turn.units import Units
+from grbl_turn.units import Units, convert
 
 
 @pytest.fixture
@@ -47,3 +47,10 @@ def test_convert_same_units_is_noop(isolated_settings):
     config.save_op_params("ext_turning", {"start_dia": 0.5})
     config.convert_saved_params(Units.MM, Units.MM)
     assert float(config.load_op_params("ext_turning")["start_dia"]) == 0.5
+
+
+def test_convert_value():
+    assert convert(1.0, Units.INCH, Units.MM) == pytest.approx(25.4)
+    assert convert(25.4, Units.MM, Units.INCH) == pytest.approx(1.0)
+    assert convert(3.7, Units.MM, Units.MM) == 3.7
+    assert convert(3.7, Units.INCH, Units.INCH) == 3.7

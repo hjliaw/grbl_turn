@@ -12,6 +12,7 @@ def make_worker():
     worker.stream_finished.connect(
         lambda ok, msg: events.append(("finished", ok, msg)))
     worker.status.connect(lambda st: events.append(("status", st)))
+    worker.setting.connect(lambda n, v: events.append(("setting", n, v)))
     worker.alarm.connect(lambda a: events.append(("alarm", a)))
     return worker, events
 
@@ -32,6 +33,7 @@ def test_stream_completes():
     worker, events = make_worker()
     sim = SimTransport()
     worker.commands.put(("connect", sim))
+    pump(worker)   # let the connect handshake ($$ query) finish
     worker.commands.put(("stream", ["G0 X0.25 Z0.04", "G1 Z-0.75 F3",
                                     "G0 X0.29", "M2"]))
     pump(worker)
@@ -43,6 +45,7 @@ def test_stream_error_aborts():
     worker, events = make_worker()
     sim = SimTransport(error_on=lambda l: 20 if b"G1" in l else None)
     worker.commands.put(("connect", sim))
+    pump(worker)   # let the connect handshake ($$ query) finish
     worker.commands.put(("stream", ["G0 X0.25", "G1 Z-0.75 F3", "G0 X0.29"]))
     pump(worker)
     finished = [e for e in events if e[0] == "finished"]
@@ -93,6 +96,18 @@ def test_soft_reset_kills_stream():
     pump(worker, 5)
     finished = [e for e in events if e[0] == "finished"]
     assert finished == [("finished", False, "stopped by soft reset")]
+
+
+def test_settings_queried_on_connect():
+    worker, events = make_worker()
+    worker.commands.put(("connect", SimTransport()))
+    pump(worker)
+    assert ("setting", 13, "0") in events
+
+    worker, events = make_worker()
+    worker.commands.put(("connect", SimTransport(report_inches=True)))
+    pump(worker)
+    assert ("setting", 13, "1") in events
 
 
 def test_parse_status_full_report():

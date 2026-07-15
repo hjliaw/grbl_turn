@@ -17,9 +17,11 @@ _WORD = re.compile(rb"([XZ])(-?\d+\.?\d*)")
 
 class SimTransport(Transport):
     def __init__(self, ack_delay: float = 0.0,
-                 error_on: Callable[[bytes], int | None] | None = None):
+                 error_on: Callable[[bytes], int | None] | None = None,
+                 report_inches: bool = False):
         self.ack_delay = ack_delay
         self.error_on = error_on
+        self.report_inches = report_inches
         self.out = bytearray()
         self.pos = {"X": 0.0, "Z": 0.0}
         self.state = "Idle"
@@ -75,6 +77,8 @@ class SimTransport(Transport):
                 self.out += f"error:{code}\r\n".encode()
                 return
         if line.startswith(b"$"):
+            if line == b"$$":
+                self.out += f"$13={int(self.report_inches)}\r\n".encode()
             self.out += b"ok\r\n"
             return
         for axis, num in _WORD.findall(line):

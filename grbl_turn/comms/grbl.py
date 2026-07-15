@@ -17,6 +17,7 @@ from grbl_turn.comms.transport import Transport
 
 POLL_INTERVAL = 0.2
 _STATUS = re.compile(r"<([^|>]+)(.*)>")
+_SETTING = re.compile(r"\$(\d+)=(.*)")
 
 
 def parse_status(line: str) -> dict:
@@ -41,6 +42,7 @@ class GrblWorker(QObject):
     connected = Signal(str)          # transport description
     disconnected = Signal(str)       # reason ('' for user request)
     status = Signal(dict)
+    setting = Signal(int, str)       # $ setting number, value
     comm_log = Signal(str, str)      # direction ('>' sent, '<' received), text
     progress = Signal(int, int)      # lines acked, total
     stream_finished = Signal(bool, str)   # ok, message
@@ -92,6 +94,7 @@ class GrblWorker(QObject):
         self.transport = transport
         self.transport.write(b"\r\n\r\n")   # wake GRBL
         self.connected.emit(transport.describe())
+        self._write_line("$$")   # learn the settings, notably $13
 
     def _cmd_disconnect(self, _) -> None:
         self._abort_stream()
@@ -151,6 +154,10 @@ class GrblWorker(QObject):
                 self.status.emit(st)
             return
         self.comm_log.emit("<", line)
+        m = _SETTING.match(line)
+        if m:
+            self.setting.emit(int(m.group(1)), m.group(2).strip())
+            return
         if line == "ok":
             self._on_ack()
         elif line.startswith("error:"):
