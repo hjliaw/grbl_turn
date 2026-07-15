@@ -51,7 +51,8 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
 
-        layout.addLayout(self._build_status_strip())
+        self.status_strip = self._build_status_strip()
+        layout.addWidget(self.status_strip)
 
         home = QWidget()
         grid = QGridLayout(home)
@@ -82,8 +83,9 @@ class MainWindow(QMainWindow):
         w.setting.connect(self.on_setting)
         w.alarm.connect(self.on_alarm)
 
-    def _build_status_strip(self) -> QHBoxLayout:
-        strip = QHBoxLayout()
+    def _build_status_strip(self) -> QWidget:
+        host = QWidget()
+        strip = QHBoxLayout(host)
         # pages add their own 6px margins inside the central layout's 6px;
         # match that so the strip lines up with page content
         strip.setContentsMargins(6, 0, 6, 0)
@@ -128,7 +130,7 @@ class MainWindow(QMainWindow):
         strip.addWidget(self.units_combo)
         strip.addSpacing(8)
         strip.addWidget(self.device_btn)
-        return strip
+        return host
 
     def _build_connect_page(self) -> QWidget:
         page = QWidget()
@@ -267,6 +269,8 @@ class MainWindow(QMainWindow):
         # unit switching would silently invalidate values on open pages;
         # the DRO shows the unit, so hide the dead selector entirely
         self.units_combo.setVisible(False)
+        # parameter pages want the full screen, no live-status distraction
+        self.status_strip.setVisible(not isinstance(page, OpPage))
 
     def _pop(self, page: QWidget) -> None:
         self._nav.remove(page)
@@ -275,6 +279,8 @@ class MainWindow(QMainWindow):
             self.stack.removeWidget(page)
             page.deleteLater()
         self.units_combo.setVisible(len(self._nav) == 1)
+        self.status_strip.setVisible(
+            not isinstance(self.stack.currentWidget(), OpPage))
 
     def open_op(self, op) -> None:
         page = OpPage(op, self.machine, self.units)

@@ -1,11 +1,10 @@
 """Preview + run page: one big view area toggled between the toolpath plot,
 the G-code text, and the comm console (simplest layout for a touch-only
-800x480 screen). Requires an explicit confirmation, then streams with
-progress; Back is locked while streaming."""
+800x480 screen). Streams with progress; Back is locked while streaming."""
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QFont, QIcon
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel,
                                QPlainTextEdit, QProgressBar, QPushButton,
                                QScroller, QStackedWidget, QVBoxLayout, QWidget)
 
@@ -95,14 +94,6 @@ class RunPage(QWidget):
             warn.setWordWrap(True)      # keep the page inside 800px
             layout.addWidget(warn)
 
-        self.confirm = QCheckBox(
-            "I checked tool clearance, spindle direction, and the travel "
-            "extents above")
-        # macOS reserves invisible slack around native checkboxes and
-        # narrows every sibling row by 3px; ours is stylesheet-drawn
-        self.confirm.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
-        layout.addWidget(self.confirm)
-
         self.run_btn = QPushButton("Run")
         self.run_btn.setObjectName("run")
         self.run_btn.setEnabled(False)
@@ -132,7 +123,6 @@ class RunPage(QWidget):
         bottom.addWidget(self.status_label, 1)
         layout.addLayout(bottom)
 
-        self.confirm.toggled.connect(self._update_buttons)
         self.run_btn.clicked.connect(self.on_run)
         self.hold_btn.clicked.connect(controller.feed_hold)
         self.resume_btn.clicked.connect(controller.resume)
@@ -147,7 +137,7 @@ class RunPage(QWidget):
         self._update_buttons()
 
     def _update_buttons(self) -> None:
-        ready = (self.controller.is_connected and self.confirm.isChecked()
+        ready = (self.controller.is_connected
                  and not self.controller.is_streaming)
         self.run_btn.setEnabled(ready)
 

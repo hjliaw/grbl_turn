@@ -35,17 +35,22 @@ class OpPage(QWidget):
         back.setIconSize(QSize(28, 28))
         back.setToolTip("Back")
         back.clicked.connect(self.back_requested)
+
         title = QLabel(f"<b>{op.title}</b>")
-        top = QHBoxLayout()
-        top.addWidget(back)
-        top.addSpacing(12)
-        top.addWidget(title)
-        top.addStretch(1)
-        top.addWidget(QLabel("X0 = centerline   Z0 = face   Z− into work"))
 
         diagram = QSvgWidget(resource(op.diagram))
         diagram.renderer().setAspectRatioMode(Qt.KeepAspectRatio)
         diagram.setMinimumSize(240, 240)
+
+        head = QHBoxLayout()
+        head.addWidget(back)
+        head.addSpacing(12)
+        head.addWidget(title)
+        head.addStretch(1)
+
+        left = QVBoxLayout()
+        left.addLayout(head)
+        left.addWidget(diagram, 1)
 
         # build grouped form
         groups: dict[str, QFormLayout] = {}
@@ -76,21 +81,23 @@ class OpPage(QWidget):
         QScroller.grabGesture(scroll.viewport(),
                               QScroller.ScrollerGestureType.LeftMouseButtonGesture)
 
-        body = QHBoxLayout()
-        body.addWidget(diagram, 2)
-        body.addWidget(scroll, 3)   # the form needs the width on 800px
-
         # Generate lives outside the scroll area: always visible
-        generate = QPushButton("Generate G-code…")
+        generate = QPushButton("G-code")
         generate.setObjectName("run")
         generate.clicked.connect(self.on_generate)
+
+        right = QVBoxLayout()
+        right.addWidget(scroll, 1)
+        right.addWidget(generate)
+
+        body = QHBoxLayout()
+        body.addLayout(left, 2)
+        body.addLayout(right, 3)   # the form needs the width on 800px
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
-        layout.addLayout(top)
         layout.addLayout(body, 1)
-        layout.addWidget(generate)
 
     def _label(self, f: Field) -> str:
         unit = "in" if self.units is Units.INCH else "mm"
