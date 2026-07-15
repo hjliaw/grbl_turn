@@ -20,6 +20,11 @@ _STATUS = re.compile(r"<([^|>]+)(.*)>")
 _SETTING = re.compile(r"\$(\d+)=(.*)")
 
 
+def debug(direction: str, text: str) -> None:
+    """Print every byte exchanged with the controller to the terminal."""
+    print(f"[{time.strftime('%H:%M:%S')}] {direction} {text}", flush=True)
+
+
 def parse_status(line: str) -> dict:
     m = _STATUS.match(line)
     if not m:
@@ -92,7 +97,9 @@ class GrblWorker(QObject):
     def _cmd_connect(self, transport: Transport) -> None:
         transport.open()
         self.transport = transport
+        debug("--", f"connected: {transport.describe()}")
         self.transport.write(b"\r\n\r\n")   # wake GRBL
+        debug(">", r"\r\n\r\n (wake)")
         self.connected.emit(transport.describe())
         self._write_line("$$")   # learn the settings, notably $13
 
@@ -101,6 +108,7 @@ class GrblWorker(QObject):
         if self.transport:
             self.transport.close()
             self.transport = None
+        debug("--", "disconnected (user request)")
         self.disconnected.emit("")
 
     def _cmd_stream(self, lines: list[str]) -> None:
@@ -123,6 +131,7 @@ class GrblWorker(QObject):
         if not self.transport:
             return
         self.transport.write(data)
+        debug(">", f"{data!r} (realtime)")
         if data == b"\x18":   # soft reset kills any stream
             if self._lines is not None:
                 self._lines = None
@@ -148,6 +157,7 @@ class GrblWorker(QObject):
                 self._handle_line(line)
 
     def _handle_line(self, line: str) -> None:
+        debug("<", line)
         if line.startswith("<"):
             st = parse_status(line)
             if st:
@@ -200,6 +210,7 @@ class GrblWorker(QObject):
     # -- helpers --------------------------------------------------------------
     def _write_line(self, line: str) -> None:
         self.transport.write(line.encode() + b"\n")
+        debug(">", line)
         self.comm_log.emit(">", line)
 
     def _poll(self) -> None:
@@ -207,8 +218,10 @@ class GrblWorker(QObject):
         if now - self._last_poll >= POLL_INTERVAL:
             self._last_poll = now
             self.transport.write(b"?")
+            debug(">", "? (status poll)")
 
     def _drop_transport(self, reason: str) -> None:
+        debug("--", f"transport dropped: {reason}")
         self._abort_stream()
         if self.transport:
             try:
