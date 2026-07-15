@@ -2,6 +2,7 @@
 transport and does all reads/writes from its worker thread."""
 
 import socket
+import termios
 from abc import ABC, abstractmethod
 
 import serial
@@ -26,6 +27,19 @@ class Transport(ABC):
     def describe(self) -> str: ...
 
 
+class _HandsOffSerial(serial.Serial):
+    """pyserial sets DTR and RTS with one ioctl each on open; the ESP32
+    auto-program circuit fires on the asymmetric intermediate state (one
+    line asserted, the other not) and resets the chip. Skip the per-line
+    pokes; SerialTransport.open() sets both lines in a single ioctl."""
+
+    def _update_dtr_state(self) -> None:
+        pass
+
+    def _update_rts_state(self) -> None:
+        pass
+
+
 class SerialTransport(Transport):
     def __init__(self, port: str, baud: int = 115200):
         self.port = port
@@ -33,7 +47,16 @@ class SerialTransport(Transport):
         self.ser: serial.Serial | None = None
 
     def open(self) -> None:
-        self.ser = serial.Serial(self.port, self.baud, timeout=0.05)
+        ser = _HandsOffSerial(self.port, self.baud, timeout=0.05)
+        # DTR/RTS edges reach EN/GPIO0 through the ESP32 auto-program
+        # circuit. The driver raises both lines during open() — nothing
+        # userspace can prevent — so instead keep them raised forever:
+        # with HUPCL cleared, close() no longer drops them, and every
+        # open after the first is edge-free (no reset).
+        attrs = termios.tcgetattr(ser.fd)
+        attrs[2] &= ~termios.HUPCL
+        termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
+        self.ser = ser
 
     def close(self) -> None:
         if self.ser:
