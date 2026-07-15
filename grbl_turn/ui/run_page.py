@@ -153,6 +153,8 @@ class RunPage(QWidget):
         w.progress.connect(self.on_progress)
         w.stream_finished.connect(self.on_finished)
         w.comm_log.connect(self.on_log)
+        w.connected.connect(self.on_connected)
+        w.disconnected.connect(self.on_disconnected)
 
         self._update_buttons()
 
@@ -203,6 +205,14 @@ class RunPage(QWidget):
         self.progress.setRange(0, max(1, len([l for l in self.lines
                                               if l.strip()])))
         self.progress.setValue(0)
+
+    def on_connected(self, desc: str) -> None:
+        self.status_label.setText("")
+        self._update_buttons()
+
+    def on_disconnected(self, reason: str) -> None:
+        self.status_label.setText("Not connected — connect first to run")
+        self._update_buttons()
 
     def on_progress(self, done: int, total: int) -> None:
         self.progress.setRange(0, total)
