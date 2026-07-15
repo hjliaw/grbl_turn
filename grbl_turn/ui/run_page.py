@@ -58,6 +58,11 @@ class RunPage(QWidget):
         top.addSpacing(8)
         top.addWidget(QLabel(f"<b>{op.title}</b>"))
         top.addStretch(1)
+        sim_btn = QPushButton("Simulate")
+        sim_btn.setToolTip("Animate the tool tip along the toolpath")
+        sim_btn.clicked.connect(self.on_simulate)
+        top.addWidget(sim_btn)
+        top.addSpacing(8)
         for idx, name, icon in ((PLOT, "Plot", "plot.svg"),
                                 (GCODE, "G-code", "list.svg"),
                                 (CONSOLE, "Console", "terminal.svg")):
@@ -150,6 +155,10 @@ class RunPage(QWidget):
     def show_view(self, idx: int) -> None:
         self.view_group.button(idx).setChecked(True)
         self.views.setCurrentIndex(idx)
+
+    def on_simulate(self) -> None:
+        self.show_view(PLOT)
+        self.path_view.toggle_simulation()
 
     def on_run(self) -> None:
         self.run_btn.setEnabled(False)

@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self.machine = MachineProfile()
         self.units = Units(str(settings().value("units", Units.INCH.value)))
         self.report_units = Units.MM   # GRBL $13 default; queried on connect
+        self._sim_active = False       # toolpath sim owns the X/Z readouts
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -231,16 +232,11 @@ class MainWindow(QMainWindow):
         self._set_state(state, STATE_COLORS.get(state.split(":")[0], NEUTRAL))
         pos = st.get("WPos") or st.get("MPos")
         if pos and len(pos) >= 3:
-            x_dia = pos[0] if self.machine.x_words_are_diameter \
-                else pos[0] * 2
-            dec = self.units.decimals
-            unit = "in" if self.units is Units.INCH else "mm"
-            self.x_label.setText(
-                f"X⌀ {convert(x_dia, self.report_units, self.units):.{dec}f}"
-                f" {unit}")
-            self.z_label.setText(
-                f"Z {convert(pos[2], self.report_units, self.units):.{dec}f}"
-                f" {unit}")
+            if not self._sim_active:   # sim owns the readouts while running
+                x_dia = pos[0] if self.machine.x_words_are_diameter \
+                    else pos[0] * 2
+                self._show_xz(convert(x_dia, self.report_units, self.units),
+                              convert(pos[2], self.report_units, self.units))
             page = self.stack.currentWidget()
             if isinstance(page, RunPage):
                 # plot coordinates use the program's units and X-word
@@ -250,6 +246,24 @@ class MainWindow(QMainWindow):
                     convert(pos[0], self.report_units, self.units))
         if "rpm" in st:
             self.rpm_label.setText(f"S {st['rpm']:.0f} RPM")
+
+    def _show_xz(self, x_dia: float, z: float) -> None:
+        dec = self.units.decimals
+        unit = "in" if self.units is Units.INCH else "mm"
+        self.x_label.setText(f"X⌀ {x_dia:.{dec}f} {unit}")
+        self.z_label.setText(f"Z {z:.{dec}f} {unit}")
+
+    def on_sim_moved(self, z: float, x: float) -> None:
+        self._sim_active = True
+        for label in (self.x_label, self.z_label):
+            label.setStyleSheet("color: rgb(255, 200, 60);")   # sim yellow
+        self._show_xz(x if self.machine.x_words_are_diameter else x * 2, z)
+
+    def on_sim_stopped(self) -> None:
+        self._sim_active = False
+        for label in (self.x_label, self.z_label):
+            label.setStyleSheet("")
+            label.setText(label.text().split()[0] + " ?")   # next poll refills
 
     def on_alarm(self, line: str) -> None:
         self._set_state(line, STATE_COLORS["Alarm"])
@@ -273,6 +287,8 @@ class MainWindow(QMainWindow):
         self.status_strip.setVisible(not isinstance(page, OpPage))
 
     def _pop(self, page: QWidget) -> None:
+        if isinstance(page, RunPage):   # leaving mid-sim: release the DRO
+            page.path_view.stop_simulation()
         self._nav.remove(page)
         self.stack.setCurrentWidget(self._nav[-1])
         if page is not self.connect_page:   # the device page is permanent
@@ -292,6 +308,8 @@ class MainWindow(QMainWindow):
     def open_run(self, op, lines: list[str]) -> None:
         page = RunPage(op, lines, self.controller)
         page.back_requested.connect(lambda: self._pop(page))
+        page.path_view.sim_moved.connect(self.on_sim_moved)
+        page.path_view.sim_stopped.connect(self.on_sim_stopped)
         self._push(page)
 
     def closeEvent(self, event) -> None:

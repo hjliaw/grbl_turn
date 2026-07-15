@@ -9,10 +9,11 @@ degressive-infeed math the G33 fallback uses, so the thread passes are
 visible even when the firmware does the looping.
 """
 
+import math
 import re
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
@@ -92,19 +93,33 @@ def parse_segments(lines: list[str]) -> list[Segment]:
 RAPID_PEN = (QColor(110, 150, 255), 1, Qt.PenStyle.DashLine)
 FEED_PEN = (QColor(120, 220, 120), 2, Qt.PenStyle.SolidLine)
 TOOL_COLOR = QColor(255, 70, 70)
+SIM_COLOR = QColor(255, 200, 60)
+SIM_DURATION_MS = 10000       # short programs: whole run in this time
+SIM_FEED_SEG_MS = 1000        # many-pass programs: per cut segment
+SIM_TICK_MS = 30
+SIM_RAPID_FACTOR = 4.0        # rapids animate this much faster
 
 
 class PathView(QWidget):
+    sim_moved = Signal(float, float)    # z, x in program coordinates
+    sim_stopped = Signal()
+
     def __init__(self, lines: list[str] | None = None, parent=None):
         super().__init__(parent)
         self.setMinimumSize(260, 120)
         self.segments: list[Segment] = []
         self.tool: tuple[float, float] | None = None    # (z, x) from status
+        self.sim_point: tuple[float, float] | None = None
+        self._sim_t = 0.0
+        self._sim_timer = QTimer(self)
+        self._sim_timer.setInterval(SIM_TICK_MS)
+        self._sim_timer.timeout.connect(self._sim_step)
         if lines:
             self.set_lines(lines)
 
     def set_lines(self, lines: list[str]) -> None:
         self.segments = parse_segments(lines)
+        self.stop_simulation()
         self.update()
 
     def set_tool(self, z: float, x: float) -> None:
@@ -113,6 +128,58 @@ class PathView(QWidget):
         if self.tool != (z, x):
             self.tool = (z, x)
             self.update()
+
+    # -- tool-tip simulation ---------------------------------------------------
+    def _sim_durations(self) -> list[float]:
+        """Per-segment animation 'durations' (path length, rapids scaled)."""
+        return [math.hypot(s.z1 - s.z0, s.x1 - s.x0)
+                / (SIM_RAPID_FACTOR if s.rapid else 1.0)
+                for s in self.segments]
+
+    def toggle_simulation(self) -> None:
+        if self._sim_timer.isActive():
+            self.stop_simulation()
+        else:
+            self.start_simulation()
+
+    def start_simulation(self) -> None:
+        if not self.segments:
+            return
+        # give every cut pass enough screen time (threading has dozens)
+        feeds = sum(1 for s in self.segments if not s.rapid)
+        self._sim_duration_ms = max(SIM_DURATION_MS, SIM_FEED_SEG_MS * feeds)
+        self._sim_t = 0.0
+        first = self.segments[0]
+        self.sim_point = (first.z0, first.x0)
+        self._sim_timer.start()
+        self.update()
+
+    def stop_simulation(self) -> None:
+        was_running = self._sim_timer.isActive()
+        self._sim_timer.stop()
+        self.sim_point = None
+        if was_running:
+            self.sim_stopped.emit()
+        self.update()
+
+    def _sim_step(self) -> None:
+        durations = self._sim_durations()
+        total = sum(durations)
+        if total <= 0.0:
+            self.stop_simulation()
+            return
+        self._sim_t += total * SIM_TICK_MS / self._sim_duration_ms
+        t = self._sim_t
+        for seg, dur in zip(self.segments, durations):
+            if t <= dur and dur > 0.0:
+                f = t / dur
+                self.sim_point = (seg.z0 + f * (seg.z1 - seg.z0),
+                                  seg.x0 + f * (seg.x1 - seg.x0))
+                self.sim_moved.emit(*self.sim_point)
+                self.update()
+                return
+            t -= dur
+        self.stop_simulation()     # ran off the end: done
 
     def paintEvent(self, event) -> None:
         p = QPainter(self)
@@ -183,6 +250,13 @@ class PathView(QWidget):
             p.setBrush(TOOL_COLOR)
             p.drawEllipse(int(px(self.tool[0])) - 4,
                           int(py(self.tool[1])) - 4, 8, 8)
+
+        # simulated tool tip
+        if self.sim_point is not None:
+            p.setPen(QPen(SIM_COLOR, 1))
+            p.setBrush(SIM_COLOR)
+            p.drawEllipse(int(px(self.sim_point[0])) - 4,
+                          int(py(self.sim_point[1])) - 4, 8, 8)
 
         # axis hints
         p.setBrush(Qt.BrushStyle.NoBrush)
