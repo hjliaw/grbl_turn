@@ -90,6 +90,16 @@ def parse_segments(lines: list[str]) -> list[Segment]:
     return segments
 
 
+def segment_extents(segments: list[Segment]) -> dict[str, tuple[float, float]]:
+    """Min/max positions the tool actually reaches. Unlike scanning X/Z
+    words, this includes G76 passes (depth hides in I/J/K words)."""
+    if not segments:
+        return {}
+    zs = [v for s in segments for v in (s.z0, s.z1)]
+    xs = [v for s in segments for v in (s.x0, s.x1)]
+    return {"X": (min(xs), max(xs)), "Z": (min(zs), max(zs))}
+
+
 RAPID_PEN = (QColor(110, 150, 255), 1, Qt.PenStyle.DashLine)
 FEED_PEN = (QColor(120, 220, 120), 2, Qt.PenStyle.SolidLine)
 TOOL_COLOR = QColor(255, 70, 70)

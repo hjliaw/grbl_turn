@@ -4,7 +4,7 @@ import pytest
 
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY
-from grbl_turn.ui.path_view import parse_segments
+from grbl_turn.ui.path_view import parse_segments, segment_extents
 
 MACHINE = MachineProfile()
 
@@ -56,6 +56,18 @@ def test_g33_fallback_draws_same_shape():
     feeds = [s for s in parse_segments(lines) if not s.rapid]
     assert len(feeds) >= 5
     assert feeds[-1].x1 == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
+
+
+def test_g76_extents_include_thread_depth():
+    from grbl_turn.units import Units
+    from grbl_turn.gcode import extents
+    op = BY_KEY["ext_thread"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    ext = segment_extents(parse_segments(lines))
+    # tool must reach the minor radius: major 0.25 - 0.6134 * pitch 0.05
+    assert ext["X"][0] == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
+    # word-scanning only sees the drive line — the very bug this guards
+    assert extents(lines)["X"][0] > ext["X"][0]
 
 
 def test_comments_and_blank_lines_ignored():

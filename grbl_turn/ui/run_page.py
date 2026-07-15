@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel,
 from grbl_turn import resource
 from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
-from grbl_turn.ui.path_view import PathView
+from grbl_turn.ui.path_view import PathView, segment_extents
 
 PLOT, GCODE, CONSOLE = range(3)
 
@@ -75,7 +75,8 @@ class RunPage(QWidget):
         self.view_group.idClicked.connect(self.views.setCurrentIndex)
         self.view_group.button(PLOT).setChecked(True)
 
-        ext = extents(lines)
+        # segments include the passes G76 will cut; word-scanning misses them
+        ext = segment_extents(self.path_view.segments) or extents(lines)
         parts = []
         if "X" in ext:
             parts.append(f"X {ext['X'][0]:g} … {ext['X'][1]:g}")
