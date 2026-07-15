@@ -45,27 +45,24 @@ def _fields(internal: bool) -> list[Field]:
               minimum=0, maximum=9),
         Field("pitch_val", "Pitch", "pitch", 20.0, group="Z (bed/leadscrew)",
               default_mm=1.5,
-              tooltip="Inch mode: TPI or in/rev per the type below; "
-                      "mm mode: mm/rev"),
-        Field("pitch_mode", "Pitch type", "pitch_mode", "TPI",
-              group="Z (bed/leadscrew)", choices=["TPI", "custom (in/rev)"]),
+              tooltip="Inch mode: TPI; mm mode: mm/rev"),
         Field("length", "Thread length (from face)", "len", 0.500,
               group="Z (bed/leadscrew)"),
         Field("lead_in", "Lead-in (0=auto)", "len", 0.0,
               group="Z (bed/leadscrew)", minimum=0.0,
               tooltip="Sync-up distance in front of the face; 0 = 2x pitch"),
         Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
-              choices=["0", "29.5", "30"]),
+              choices=["0", "29.5", "30"], unit="deg"),
         Field("clearance", "Clearance (radial)", "len", 0.020, group="Cutting"),
     ]
 
 
 def _pitch(p: dict, units: Units) -> float:
+    if p["pitch_val"] <= 0:
+        raise ValueError("pitch must be positive")
     if units is Units.MM:
-        return p["pitch_val"]           # always mm/rev in mm mode
-    if p["pitch_mode"] == "TPI":
-        return 1.0 / p["pitch_val"]
-    return p["pitch_val"]               # custom: in/rev
+        return p["pitch_val"]           # mm/rev
+    return 1.0 / p["pitch_val"]         # inch mode: TPI
 
 
 def _generate(p: dict, machine: MachineProfile, units: Units,
@@ -84,10 +81,7 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     z_end = -p["length"]
 
     title = "Internal threading" if internal else "External threading"
-    if units is Units.MM:
-        kind = "mm/rev"
-    else:
-        kind = "TPI" if p["pitch_mode"] == "TPI" else "in/rev"
+    kind = "mm/rev" if units is Units.MM else "TPI"
     lines = header(
         title,
         [f"dia {p['dia']}, pitch {p['pitch_val']:g} {kind}, length {p['length']}",

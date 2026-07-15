@@ -19,7 +19,6 @@ def test_convert_lengths_but_not_pitch(isolated_settings):
     config.save_op_params("ext_turning", {"start_dia": 0.5, "feed": 3.0,
                                           "rpm": 600, "app_spindle": False})
     config.save_op_params("ext_thread", {"pitch_val": 20.0,
-                                         "pitch_mode": "TPI",
                                          "first_depth": 0.003})
 
     config.convert_saved_params(Units.INCH, Units.MM)
@@ -31,7 +30,6 @@ def test_convert_lengths_but_not_pitch(isolated_settings):
 
     thread = config.load_op_params("ext_thread")
     assert float(thread["pitch_val"]) == pytest.approx(20.0)  # never converted
-    assert thread["pitch_mode"] == "TPI"
     assert float(thread["first_depth"]) == pytest.approx(0.0762)
 
 

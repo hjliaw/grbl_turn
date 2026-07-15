@@ -123,9 +123,9 @@ def test_thread_internal_direction():
 
 
 def test_thread_metric_pitch():
-    # mm mode: pitch_val is always mm/rev, whatever pitch_mode says
+    # mm mode: pitch_val is mm/rev, used verbatim
     op = BY_KEY["ext_thread"]
-    p = defaults(op) | {"pitch_val": 1.5, "pitch_mode": "mm/rev",
+    p = defaults(op) | {"pitch_val": 1.5,
                         "dia": 10.0, "first_depth": 0.1,
                         "clearance": 0.5, "length": 12.0}
     lines = op.generate(p, MACHINE, Units.MM)
@@ -133,10 +133,17 @@ def test_thread_metric_pitch():
     assert "P1.500" in g76
 
 
-def test_thread_custom_inch_pitch():
-    # inch mode with "custom": pitch_val is in/rev, not TPI
+def test_thread_inch_pitch_is_tpi():
+    # inch mode: pitch_val is TPI, arbitrary values allowed
     op = BY_KEY["ext_thread"]
-    p = defaults(op) | {"pitch_val": 0.05, "pitch_mode": "custom (in/rev)"}
+    p = defaults(op) | {"pitch_val": 13.5}
     lines = op.generate(p, MACHINE, Units.INCH)
     g76 = [l for l in lines if l.startswith("G76")][0]
-    assert "P0.0500" in g76
+    assert f"P{1 / 13.5:.4f}" in g76
+
+
+def test_thread_zero_pitch_rejected():
+    op = BY_KEY["ext_thread"]
+    p = defaults(op) | {"pitch_val": 0.0}
+    with pytest.raises(ValueError):
+        op.generate(p, MACHINE, Units.INCH)
