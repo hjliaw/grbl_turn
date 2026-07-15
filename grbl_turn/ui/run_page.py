@@ -94,14 +94,20 @@ class RunPage(QWidget):
             warn.setWordWrap(True)      # keep the page inside 800px
             layout.addWidget(warn)
 
-        self.run_btn = QPushButton("Run")
+        def icon_btn(icon: str, tip: str) -> QPushButton:
+            b = QPushButton(QIcon(resource(icon)), "")
+            b.setIconSize(QSize(28, 28))
+            b.setToolTip(tip)
+            return b
+
+        self.run_btn = icon_btn("play.svg", "Run")
         self.run_btn.setObjectName("run")
         self.run_btn.setEnabled(False)
-        self.hold_btn = QPushButton("Hold")
-        self.resume_btn = QPushButton("Resume")
-        self.stop_btn = QPushButton("STOP (soft reset)")
+        self.hold_btn = icon_btn("pause.svg", "Hold")
+        self.resume_btn = icon_btn("refresh.svg", "Resume")
+        self.stop_btn = icon_btn("stop.svg", "STOP (soft reset)")
         self.stop_btn.setObjectName("stop")
-        save_btn = QPushButton("Save .nc…")
+        save_btn = icon_btn("save.svg", "Save .nc…")
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
 
