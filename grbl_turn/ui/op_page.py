@@ -19,6 +19,7 @@ from grbl_turn.units import MM_PER_INCH, Units
 
 LABEL_COL_W = 240   # uniform columns across the parameter groups
 UNIT_COL_W = 56
+AUTO_BTN_W = 60
 
 
 class OpPage(QWidget):
@@ -32,6 +33,7 @@ class OpPage(QWidget):
         self.machine = machine
         self.units = units
         self.widgets: dict[str, object] = {}
+        self._auto_prev: dict[str, str] = {}   # values before "auto" clicks
 
         back = QPushButton(QIcon(resource("arrow-left.svg")), "")
         back.setObjectName("back")
@@ -100,25 +102,13 @@ class OpPage(QWidget):
         right.addWidget(generate)
 
         body = QHBoxLayout()
-        body.addLayout(left, 2)
-        body.addLayout(right, 3)   # the form needs the width on 800px
+        body.addLayout(left, 1)
+        body.addLayout(right, 2)   # the form needs the width on 800px
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(body, 1)
-
-        # units badge floating in the top-right corner (takes no form height)
-        self.unit_label = QLabel(units.value, self)
-        self.unit_label.setStyleSheet(
-            "color: rgb(180, 200, 180); background: transparent;")
-        self.unit_label.adjustSize()
-        self.unit_label.raise_()
-
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        # clear the form's right margin and scrollbar
-        self.unit_label.move(self.width() - self.unit_label.width() - 34, 6)
 
     def _unit_suffix(self, f: Field) -> str:
         if f.unit:
@@ -135,16 +125,44 @@ class OpPage(QWidget):
         return ""
 
     def _with_unit(self, f: Field, widget) -> QWidget:
-        """The input widget with its unit text to the right. Unit-less rows
-        get an empty placeholder so every input spans the same column."""
+        """The input widget flanked by an auto button (or placeholder) on
+        the left and its unit text (or placeholder) on the right, so every
+        input spans the same column."""
         box = QWidget()
         row = QHBoxLayout(box)
         row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)   # macOS varies spacing by widget type otherwise
+        if f.auto is not None:
+            btn = QPushButton("auto")
+            btn.setFixedWidth(AUTO_BTN_W)
+            btn.setToolTip("Calculate from the other parameters")
+            btn.clicked.connect(
+                lambda checked=False, f=f, w=widget, b=btn:
+                self.on_auto(f, w, b))
+            row.addWidget(btn)
+        else:
+            pad = QWidget()   # placeholder: keeps the input column aligned
+            pad.setFixedWidth(AUTO_BTN_W)
+            row.addWidget(pad)
         row.addWidget(widget, 1)
         unit = QLabel(self._unit_suffix(f))
         unit.setMinimumWidth(UNIT_COL_W)
         row.addWidget(unit)
         return box
+
+    def on_auto(self, f: Field, widget, btn: QPushButton) -> None:
+        if btn.text() == "auto":
+            try:
+                value = f.auto(self.collect_params(), self.units)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Auto value", str(exc))
+                return
+            self._auto_prev[f.name] = widget.text()
+            widget.setText(f"{round(value, 6):g}")
+            btn.setText("back")
+        else:
+            widget.setText(self._auto_prev.get(f.name, "0.0"))
+            btn.setText("auto")
 
     def _float_default(self, f: Field) -> float:
         """Field defaults are written in inches; adapt them to mm mode."""

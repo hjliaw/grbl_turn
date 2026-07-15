@@ -34,7 +34,9 @@ def _fields(internal: bool) -> list[Field]:
         Field("total_depth", "Total depth (0=auto)", "len", 0.0,
               group="X (cross-slide)", minimum=0.0,
               tooltip="Radial thread depth; 0 = 0.6134x pitch (ext) or "
-                      "0.5413x pitch (int) for 60 deg threads"),
+                      "0.5413x pitch (int) for 60 deg threads",
+              auto=lambda p, u: _pitch(p, u) * (INT_DEPTH_FACTOR if internal
+                                                else EXT_DEPTH_FACTOR)),
         Field("first_depth", "First pass depth", "len", 0.003,
               group="X (cross-slide)"),
         Field("degression", "Depth degression (R)", "ratio", 1.5,
@@ -50,7 +52,8 @@ def _fields(internal: bool) -> list[Field]:
               group="Z (bed/leadscrew)"),
         Field("lead_in", "Lead-in (0=auto)", "len", 0.0,
               group="Z (bed/leadscrew)", minimum=0.0,
-              tooltip="Sync-up distance in front of the face; 0 = 2x pitch"),
+              tooltip="Sync-up distance in front of the face; 0 = 2x pitch",
+              auto=lambda p, u: 2.0 * _pitch(p, u)),
         Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
               choices=["0", "29.5", "30"], unit="deg"),
         Field("clearance", "Clearance (radial)", "len", 0.020, group="Cutting"),

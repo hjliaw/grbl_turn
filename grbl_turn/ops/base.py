@@ -38,6 +38,9 @@ class Field:
     choices: list[str] = field(default_factory=list)
     default_mm: float | None = None   # mm-mode default for kind "pitch"
     unit: str = ""   # fixed unit text shown after the input (e.g. "deg")
+    # optional auto-calculation for the value, from the other parameters;
+    # the form shows an "auto" button next to fields that define one
+    auto: Callable[[dict, Units], float] | None = None
 
 
 @dataclass
