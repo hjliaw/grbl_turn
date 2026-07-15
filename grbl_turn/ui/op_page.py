@@ -73,11 +73,11 @@ class OpPage(QWidget):
                 form_col.addWidget(box)
             widget = self._make_widget(f, saved.get(f.name))
             self.widgets[f.name] = widget
-            label = QLabel(f.label)
-            label.setMinimumWidth(LABEL_COL_W)
-            label.setAlignment(Qt.AlignmentFlag.AlignRight
-                               | Qt.AlignmentFlag.AlignVCenter)
-            groups[f.group].addRow(label, self._with_unit(f, widget))
+            if f.presets:
+                groups[f.group].addRow(self._row_label("Preset"),
+                                       self._preset_row(f, widget))
+            groups[f.group].addRow(self._row_label(f.label),
+                                   self._with_unit(f, widget))
 
         form_col.addStretch(1)
 
@@ -109,6 +109,51 @@ class OpPage(QWidget):
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(body, 1)
+
+    def _row_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setMinimumWidth(LABEL_COL_W)
+        label.setAlignment(Qt.AlignmentFlag.AlignRight
+                           | Qt.AlignmentFlag.AlignVCenter)
+        return label
+
+    def _preset_row(self, f: Field, widget) -> QWidget:
+        """Dropdown that fills the field with a named preset value; any
+        other value in the field shows as 'custom'."""
+        combo = QComboBox()
+        combo.addItem("custom")
+        combo.addItems(f.presets.keys())
+        combo.setSizePolicy(QSizePolicy.Policy.Expanding,
+                            QSizePolicy.Policy.Fixed)
+
+        def apply(name: str) -> None:
+            if name in f.presets:
+                widget.setText(self._fmt_value(f.presets[name]))
+
+        def follow(text: str) -> None:
+            name = combo.currentText()
+            if name != "custom" and text != self._fmt_value(f.presets[name]):
+                combo.setCurrentText("custom")
+
+        combo.currentTextChanged.connect(apply)
+        widget.textChanged.connect(follow)
+        for name, value in f.presets.items():   # recognize a saved preset
+            if widget.text() == self._fmt_value(value):
+                combo.setCurrentText(name)
+                break
+
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        pad = QWidget()
+        pad.setFixedWidth(AUTO_BTN_W)
+        row.addWidget(pad)
+        row.addWidget(combo, 1)
+        unit = QLabel("")
+        unit.setMinimumWidth(UNIT_COL_W)
+        row.addWidget(unit)
+        return box
 
     def _unit_suffix(self, f: Field) -> str:
         if f.unit:

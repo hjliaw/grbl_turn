@@ -11,7 +11,11 @@ MACHINE = MachineProfile()
 
 
 def defaults(op) -> dict:
-    return {f.name: f.default for f in op.fields}
+    p = {f.name: f.default for f in op.fields}
+    for f in op.fields:   # zero defaults are literal now: "tap A" like a user
+        if f.auto is not None and not p[f.name]:
+            p[f.name] = f.auto(p, Units.INCH)
+    return p
 
 
 def body(lines):
@@ -140,6 +144,14 @@ def test_thread_inch_pitch_is_tpi():
     lines = op.generate(p, MACHINE, Units.INCH)
     g76 = [l for l in lines if l.startswith("G76")][0]
     assert f"P{1 / 13.5:.4f}" in g76
+
+
+def test_thread_zero_depth_rejected():
+    # 0 is no longer "auto": the user must tap A to fill the depth
+    op = BY_KEY["ext_thread"]
+    p = defaults(op) | {"total_depth": 0.0}
+    with pytest.raises(ValueError):
+        op.generate(p, MACHINE, Units.INCH)
 
 
 def test_thread_zero_pitch_rejected():

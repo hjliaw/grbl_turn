@@ -31,9 +31,9 @@ def _fields(internal: bool) -> list[Field]:
     )
     return [
         dia_field,
-        Field("total_depth", "Total depth (0=auto)", "len", 0.0,
+        Field("total_depth", "Total depth", "len", 0.0,
               group="X (cross-slide)", minimum=0.0,
-              tooltip="Radial thread depth; 0 = 0.6134x pitch (ext) or "
+              tooltip="Radial thread depth; auto = 0.6134x pitch (ext) or "
                       "0.5413x pitch (int) for 60 deg threads",
               auto=lambda p, u: _pitch(p, u) * (INT_DEPTH_FACTOR if internal
                                                 else EXT_DEPTH_FACTOR)),
@@ -50,9 +50,9 @@ def _fields(internal: bool) -> list[Field]:
               tooltip="Inch mode: TPI; mm mode: mm/rev"),
         Field("length", "Thread length (from face)", "len", 0.500,
               group="Z (bed/leadscrew)"),
-        Field("lead_in", "Lead-in (0=auto)", "len", 0.0,
+        Field("lead_in", "Lead-in", "len", 0.0,
               group="Z (bed/leadscrew)", minimum=0.0,
-              tooltip="Sync-up distance in front of the face; 0 = 2x pitch",
+              tooltip="Sync-up distance in front of the face; auto = 2x pitch",
               auto=lambda p, u: 2.0 * _pitch(p, u)),
         Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
               choices=["0", "29.5", "30"], unit="deg"),
@@ -71,9 +71,11 @@ def _pitch(p: dict, units: Units) -> float:
 def _generate(p: dict, machine: MachineProfile, units: Units,
               internal: bool) -> list[str]:
     pitch = _pitch(p, units)
-    depth = p["total_depth"] or pitch * (INT_DEPTH_FACTOR if internal
-                                         else EXT_DEPTH_FACTOR)
-    lead_in = p["lead_in"] or 2.0 * pitch
+    depth = p["total_depth"]
+    if depth <= 0:
+        raise ValueError("total depth must be > 0 — tap its A button "
+                         "to auto-calculate from the pitch")
+    lead_in = p["lead_in"]   # 0 is honored: sync-up starts at the face
     clear = p["clearance"]
     angle = float(p["compound"])
     r = p["dia"] / 2.0                       # major radius (ext) / minor (int)

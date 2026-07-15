@@ -41,6 +41,9 @@ class Field:
     # optional auto-calculation for the value, from the other parameters;
     # the form shows an "auto" button next to fields that define one
     auto: Callable[[dict, Units], float] | None = None
+    # optional named preset values; the form adds a dropdown above the
+    # field that fills the value in (editing the field reverts to custom)
+    presets: dict[str, float] | None = None
 
 
 @dataclass

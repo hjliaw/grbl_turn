@@ -5,12 +5,17 @@ import pytest
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY
 from grbl_turn.ui.path_view import parse_segments, segment_extents
+from grbl_turn.units import Units
 
 MACHINE = MachineProfile()
 
 
 def defaults(op) -> dict:
-    return {f.name: f.default for f in op.fields}
+    p = {f.name: f.default for f in op.fields}
+    for f in op.fields:   # zero defaults are literal now: "tap A" like a user
+        if f.auto is not None and not p[f.name]:
+            p[f.name] = f.auto(p, Units.INCH)
+    return p
 
 
 def test_segments_are_continuous():
