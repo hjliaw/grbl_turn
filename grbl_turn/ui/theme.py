@@ -37,8 +37,11 @@ QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
 QLineEdit, QComboBox, QSpinBox {
     min-height: 28px;
 }
+QComboBox {
+    padding-right: 24px;
+}
 QComboBox::drop-down {
-    width: 36px;
+    width: 18px;
 }
 QComboBox QAbstractItemView::item {
     min-height: 40px;

@@ -38,8 +38,7 @@ class OpPage(QWidget):
         top.addSpacing(12)
         top.addWidget(title)
         top.addStretch(1)
-        top.addWidget(QLabel(f"Units: {units.value}    "
-                             "X0 = centerline   Z0 = face   Z− into work"))
+        top.addWidget(QLabel("X0 = centerline   Z0 = face   Z− into work"))
 
         diagram = QSvgWidget(resource(op.diagram))
         diagram.renderer().setAspectRatioMode(Qt.KeepAspectRatio)
@@ -51,6 +50,8 @@ class OpPage(QWidget):
         form_col = QVBoxLayout(form_host)
         saved = load_op_params(op.key)
         for f in op.fields:
+            if f.kind == "pitch_mode" and units is Units.MM:
+                continue   # mm mode: pitch is always mm/rev, nothing to pick
             if f.group not in groups:
                 box = QGroupBox(f.group or "Parameters")
                 groups[f.group] = QFormLayout(box)
@@ -112,15 +113,11 @@ class OpPage(QWidget):
             w = QCheckBox()
             w.setChecked(saved in ("true", "True", True)
                          if saved is not None else bool(f.default))
-        elif f.kind == "pitch_mode":
+        elif f.kind == "pitch_mode":   # inch mode only; skipped in mm
             w = QComboBox()
-            if self.units is Units.INCH:
-                w.addItems(f.choices)
-                if saved is not None:
-                    w.setCurrentText(str(saved))   # no-op if saved was mm/rev
-            else:
-                w.addItem("mm/rev")
-                w.setEnabled(False)
+            w.addItems(f.choices)
+            if saved is not None:
+                w.setCurrentText(str(saved))   # no-op if saved was mm/rev
         elif f.kind == "choice":
             w = QComboBox()
             w.addItems(f.choices)
@@ -144,7 +141,9 @@ class OpPage(QWidget):
     def collect_params(self) -> dict:
         params = {}
         for f in self.op.fields:
-            w = self.widgets[f.name]
+            w = self.widgets.get(f.name)
+            if w is None:   # field not shown (pitch_mode in mm mode)
+                continue
             if f.kind == "bool":
                 params[f.name] = w.isChecked()
             elif f.kind in ("choice", "pitch_mode"):
@@ -165,12 +164,7 @@ class OpPage(QWidget):
         except ValueError as exc:
             QMessageBox.warning(self, "Invalid parameters", str(exc))
             return
-        to_save = dict(params)
-        if self.units is Units.MM:
-            # keep the inch-mode pitch type (TPI/custom); mm mode shows a
-            # fixed "mm/rev" placeholder that must not overwrite it
-            for f in self.op.fields:
-                if f.kind == "pitch_mode":
-                    to_save.pop(f.name, None)
-        save_op_params(self.op.key, to_save)
+        # mm mode never collects pitch_mode, so the saved inch-mode pitch
+        # type (TPI/custom) survives round trips through mm mode
+        save_op_params(self.op.key, params)
         self.run_requested.emit(lines)
