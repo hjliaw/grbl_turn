@@ -31,7 +31,8 @@ class RunPage(QWidget):
 
         # view toggle: plot / g-code text / console share one big area
         self.views = QStackedWidget()
-        self.views.addWidget(PathView(lines))
+        self.path_view = PathView(lines)
+        self.views.addWidget(self.path_view)
 
         preview = QPlainTextEdit("\n".join(lines))
         preview.setReadOnly(True)

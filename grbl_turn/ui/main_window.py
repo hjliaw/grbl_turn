@@ -228,6 +228,13 @@ class MainWindow(QMainWindow):
             self.z_label.setText(
                 f"Z {convert(pos[2], self.report_units, self.units):.{dec}f}"
                 f" {unit}")
+            page = self.stack.currentWidget()
+            if isinstance(page, RunPage):
+                # plot coordinates use the program's units and X-word
+                # convention (pos[0] already matches the X words)
+                page.path_view.set_tool(
+                    convert(pos[2], self.report_units, self.units),
+                    convert(pos[0], self.report_units, self.units))
         if "rpm" in st:
             self.rpm_label.setText(f"S {st['rpm']:.0f} RPM")
 

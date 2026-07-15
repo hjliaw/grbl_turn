@@ -91,6 +91,7 @@ def parse_segments(lines: list[str]) -> list[Segment]:
 
 RAPID_PEN = (QColor(110, 150, 255), 1, Qt.PenStyle.DashLine)
 FEED_PEN = (QColor(120, 220, 120), 2, Qt.PenStyle.SolidLine)
+TOOL_COLOR = QColor(255, 70, 70)
 
 
 class PathView(QWidget):
@@ -98,12 +99,20 @@ class PathView(QWidget):
         super().__init__(parent)
         self.setMinimumSize(260, 120)
         self.segments: list[Segment] = []
+        self.tool: tuple[float, float] | None = None    # (z, x) from status
         if lines:
             self.set_lines(lines)
 
     def set_lines(self, lines: list[str]) -> None:
         self.segments = parse_segments(lines)
         self.update()
+
+    def set_tool(self, z: float, x: float) -> None:
+        """Current machine position, in the program's units and X-word
+        convention (radius, or diameter on diameter-mode machines)."""
+        if self.tool != (z, x):
+            self.tool = (z, x)
+            self.update()
 
     def paintEvent(self, event) -> None:
         p = QPainter(self)
@@ -162,6 +171,13 @@ class PathView(QWidget):
         p.setBrush(QColor(255, 255, 255))
         p.drawEllipse(int(px(first.z0)) - 3, int(py(first.x0)) - 3, 6, 6)
 
+        # live tool position from the controller
+        if self.tool is not None:
+            p.setPen(QPen(TOOL_COLOR, 1))
+            p.setBrush(TOOL_COLOR)
+            p.drawEllipse(int(px(self.tool[0])) - 4,
+                          int(py(self.tool[1])) - 4, 8, 8)
+
         # legend + axis hint
         p.setBrush(Qt.BrushStyle.NoBrush)
         y = 16
@@ -172,6 +188,13 @@ class PathView(QWidget):
             p.setPen(QColor(200, 200, 200))
             p.drawText(46, y, label)
             y += 16
+        if self.tool is not None:
+            p.setPen(QPen(TOOL_COLOR, 1))
+            p.setBrush(TOOL_COLOR)
+            p.drawEllipse(22, y - 8, 8, 8)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QColor(200, 200, 200))
+            p.drawText(46, y, "tool")
         p.setPen(QColor(140, 140, 140))
         p.drawText(rect.width() - 60, rect.height() - 8, "+Z →")
         p.drawText(10, rect.height() - 8, "X↓ (radius)")
