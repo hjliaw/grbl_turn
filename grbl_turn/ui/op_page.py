@@ -19,7 +19,7 @@ from grbl_turn.units import MM_PER_INCH, Units
 
 LABEL_COL_W = 240   # uniform columns across the parameter groups
 UNIT_COL_W = 56
-AUTO_BTN_W = 60
+AUTO_BTN_W = 36
 
 
 class OpPage(QWidget):
@@ -119,7 +119,7 @@ class OpPage(QWidget):
         if f.kind == "feed":
             return f"{unit}/min"
         if f.kind == "pitch":
-            return "TPI" if self.units is Units.INCH else "mm/rev"
+            return "TPI" if self.units is Units.INCH else "mm"
         if f.kind == "angle":
             return "deg"
         return ""
@@ -133,7 +133,7 @@ class OpPage(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)   # macOS varies spacing by widget type otherwise
         if f.auto is not None:
-            btn = QPushButton("auto")
+            btn = QPushButton("A")
             btn.setFixedWidth(AUTO_BTN_W)
             btn.setToolTip("Calculate from the other parameters")
             btn.clicked.connect(
@@ -151,18 +151,25 @@ class OpPage(QWidget):
         return box
 
     def on_auto(self, f: Field, widget, btn: QPushButton) -> None:
-        if btn.text() == "auto":
+        if btn.text() == "A":
             try:
                 value = f.auto(self.collect_params(), self.units)
             except ValueError as exc:
                 QMessageBox.warning(self, "Auto value", str(exc))
                 return
             self._auto_prev[f.name] = widget.text()
-            widget.setText(f"{round(value, 6):g}")
-            btn.setText("back")
+            widget.setText(self._fmt_value(value))
+            btn.setText("R")
+            btn.setToolTip("Restore the previous value")
         else:
             widget.setText(self._auto_prev.get(f.name, "0.0"))
-            btn.setText("auto")
+            btn.setText("A")
+            btn.setToolTip("Calculate from the other parameters")
+
+    def _fmt_value(self, value: float) -> str:
+        """Short numbers stay as-is; long tails are rounded to the G-code
+        precision (3 decimals in mm mode, 4 in inch mode)."""
+        return f"{round(value, self.units.decimals):g}"
 
     def _float_default(self, f: Field) -> float:
         """Field defaults are written in inches; adapt them to mm mode."""
@@ -196,8 +203,12 @@ class OpPage(QWidget):
             validator.setNotation(QDoubleValidator.StandardNotation)
             w.setValidator(validator)
             w.setAlignment(Qt.AlignRight)
-            w.setText(str(saved) if saved is not None
-                      else str(self._float_default(f)))
+            try:
+                value = float(saved) if saved is not None \
+                    else self._float_default(f)
+                w.setText(self._fmt_value(value))
+            except (TypeError, ValueError):
+                w.setText(str(saved))
         if f.tooltip:
             w.setToolTip(f.tooltip)
         return w
