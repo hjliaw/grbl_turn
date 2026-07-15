@@ -159,6 +159,12 @@ class PathView(QWidget):
             p.drawLine(int(margin / 2), int(py(0.0)),
                        int(rect.width() - margin / 2), int(py(0.0)))
 
+        # part face (Z0)
+        if zmin <= 0.0 <= zmax:
+            p.setPen(QPen(QColor(90, 90, 90), 1, Qt.PenStyle.DashLine))
+            p.drawLine(int(px(0.0)), int(margin / 2),
+                       int(px(0.0)), int(rect.height() - margin / 2))
+
         for seg in self.segments:
             color, width, style = RAPID_PEN if seg.rapid else FEED_PEN
             p.setPen(QPen(color, width, style))

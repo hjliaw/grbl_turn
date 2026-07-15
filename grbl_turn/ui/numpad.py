@@ -20,6 +20,8 @@ class NumPad(QDialog):
         self.display.setObjectName("dro")
         self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.display.setMinimumWidth(260)
+        # the opening value is a placeholder: the first digit replaces it
+        self._fresh = True
 
         grid = QGridLayout()
         grid.setSpacing(6)
@@ -59,9 +61,12 @@ class NumPad(QDialog):
             self.accept()
             return
         else:
+            if self._fresh:
+                text = ""
             if key == "." and "." in text:
                 return
             text += key
+        self._fresh = False   # ⌫/C/± also mean "keep editing this value"
         self.display.setText(text)
         self._validate()
 
