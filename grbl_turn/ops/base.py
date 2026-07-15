@@ -13,6 +13,7 @@ from grbl_turn.units import Units
 #   zpos   - a Z distance from the face, positive float (cut happens at -value)
 #   feed   - feed rate, units/min
 #   angle  - degrees
+#   ratio  - dimensionless float (never unit-converted)
 #   int    - integer spinbox
 #   choice - combo box (choices list)
 #   bool   - checkbox

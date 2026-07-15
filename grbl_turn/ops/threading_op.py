@@ -37,8 +37,10 @@ def _fields(internal: bool) -> list[Field]:
                       "0.5413x pitch (int) for 60 deg threads"),
         Field("first_depth", "First pass depth", "len", 0.003,
               group="X (cross-slide)"),
-        Field("min_depth", "Min pass depth", "len", 0.001,
-              group="X (cross-slide)"),
+        Field("degression", "Depth degression (R)", "ratio", 1.5,
+              group="X (cross-slide)", minimum=1.0, maximum=2.0,
+              tooltip="G76 R word: 1.0 = same depth every pass, "
+                      "2.0 = constant chip area (passes taper off)"),
         Field("spring", "Spring passes", "int", 1, group="X (cross-slide)",
               minimum=0, maximum=9),
         Field("pitch_val", "Pitch", "pitch", 20.0, group="Z (bed/leadscrew)",
@@ -102,9 +104,10 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
         lines.append(
             f"G76 P{fmt(pitch, units)} Z{fmt(z_end, units)} "
             f"I{fmt(i_word, units)} J{fmt(p['first_depth'], units)} "
-            f"R2.0 K{fmt(depth, units)} Q{angle:g} H{int(p['spring'])}")
+            f"R{p['degression']:g} K{fmt(depth, units)} "
+            f"Q{angle:g} H{int(p['spring'])}")
     else:
-        for d in thread_infeeds(depth, p["first_depth"], p["min_depth"],
+        for d in thread_infeeds(depth, p["first_depth"], p["degression"],
                                 int(p["spring"])):
             z_start = lead_in - flank_offset(d, angle)
             lines.append(f"G0 Z{fmt(z_start, units)}")

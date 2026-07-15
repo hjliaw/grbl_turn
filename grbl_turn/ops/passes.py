@@ -29,22 +29,21 @@ def turning_passes(start_r: float, end_r: float, doc: float,
     return passes
 
 
-def thread_infeeds(total_depth: float, first_depth: float, min_depth: float,
-                   spring: int = 1) -> list[float]:
-    """Cumulative infeed depths for threading passes using degressive infeed
-    (constant chip area): depth_n = first_depth * sqrt(n), with each increment
-    clamped to at least min_depth, capped at total_depth, plus `spring`
-    repeat passes at full depth."""
+def thread_infeeds(total_depth: float, first_depth: float,
+                   degression: float = 2.0, spring: int = 1) -> list[float]:
+    """Cumulative infeed depths for threading passes with LinuxCNC G76 "R"
+    depth degression: depth_n = first_depth * n**(1/degression). R1.0 cuts
+    the same depth every pass, R2.0 keeps the chip area constant. Depths
+    are capped at total_depth, plus `spring` repeat passes at full depth."""
     if not (0 < first_depth <= total_depth):
         raise ValueError("first pass depth must be >0 and <= total depth")
+    if degression < 1.0:
+        raise ValueError("degression must be >= 1.0")
     depths = []
     prev = 0.0
     n = 1
     while prev < total_depth - 1e-9:
-        d = first_depth * math.sqrt(n)
-        if d - prev < min_depth:
-            d = prev + min_depth
-        d = min(d, total_depth)
+        d = min(first_depth * n ** (1.0 / degression), total_depth)
         depths.append(d)
         prev = d
         n += 1

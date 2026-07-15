@@ -98,6 +98,7 @@ def test_thread_g76_words():
     assert "P0.0500" in g76[0]
     assert "K0.0307" in g76[0]
     assert "I-0.0200" in g76[0]     # external: peak below drive line
+    assert "R1.5" in g76[0]         # default depth degression
     assert "Q29.5" in g76[0]
 
 
@@ -125,7 +126,7 @@ def test_thread_metric_pitch():
     # mm mode: pitch_val is always mm/rev, whatever pitch_mode says
     op = BY_KEY["ext_thread"]
     p = defaults(op) | {"pitch_val": 1.5, "pitch_mode": "mm/rev",
-                        "dia": 10.0, "first_depth": 0.1, "min_depth": 0.03,
+                        "dia": 10.0, "first_depth": 0.1,
                         "clearance": 0.5, "length": 12.0}
     lines = op.generate(p, MACHINE, Units.MM)
     g76 = [l for l in lines if l.startswith("G76")][0]

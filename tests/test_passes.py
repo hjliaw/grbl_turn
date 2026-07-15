@@ -34,23 +34,31 @@ def test_turning_passes_bad_doc():
         turning_passes(0.25, 0.2, doc=0.0)
 
 
-def test_thread_infeeds_degressive():
-    depths = thread_infeeds(0.035, first_depth=0.005, min_depth=0.001,
+def test_thread_infeeds_constant_area():
+    depths = thread_infeeds(0.035, first_depth=0.005, degression=2.0,
                             spring=1)
     assert depths[0] == pytest.approx(0.005)
     assert depths[1] == pytest.approx(0.005 * math.sqrt(2))
     # monotonic, capped at total, spring pass duplicated at the end
     assert all(b >= a for a, b in zip(depths, depths[1:]))
     assert depths[-1] == depths[-2] == pytest.approx(0.035)
-    # increments never smaller than min_depth, except the last one which is
-    # capped at total depth
-    increments = [b - a for a, b in zip(depths, depths[1:-1])]
-    assert all(inc >= 0.001 - 1e-9 for inc in increments[:-1])
+    # R2: increments shrink pass over pass (constant chip area)
+    increments = [b - a for a, b in zip(depths, depths[1:-2])]
+    assert all(b <= a + 1e-12 for a, b in zip(increments, increments[1:]))
 
 
-def test_thread_infeeds_bad_first():
+def test_thread_infeeds_constant_depth():
+    # R1: every pass advances exactly first_depth until the cap
+    depths = thread_infeeds(0.02, first_depth=0.005, degression=1.0,
+                            spring=1)
+    assert depths == pytest.approx([0.005, 0.010, 0.015, 0.020, 0.020])
+
+
+def test_thread_infeeds_bad_args():
     with pytest.raises(ValueError):
-        thread_infeeds(0.02, first_depth=0.05, min_depth=0.001)
+        thread_infeeds(0.02, first_depth=0.05)
+    with pytest.raises(ValueError):
+        thread_infeeds(0.02, first_depth=0.005, degression=0.5)
 
 
 def test_flank_offset():

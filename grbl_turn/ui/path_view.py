@@ -48,12 +48,15 @@ def _expand_g76(w: dict, z: float, x: float) -> list[Segment]:
         first = w["J"][0]
         total = w["K"][0]
         spring = int(w.get("H", [1])[0])
+        degression = w.get("R", [2.0])[0]
         peak_x = x + i_word
         sign = 1.0 if i_word > 0 else -1.0     # cut direction off the peak
-        min_depth = max(total / 50.0, 1e-6)    # viz-only clamp on pass count
-        depths = thread_infeeds(total, min(first, total), min_depth, spring)
+        depths = thread_infeeds(total, min(first, total), degression, spring)
     except (KeyError, IndexError, ValueError):
         return []
+    if len(depths) > 80:   # viz-only: thin absurdly dense schedules
+        step = math.ceil(len(depths) / 80)
+        depths = depths[::step] + depths[-1:]
     segs = []
     for d in depths:
         cut_x = peak_x + sign * d
