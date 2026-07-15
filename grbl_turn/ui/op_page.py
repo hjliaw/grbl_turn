@@ -2,8 +2,8 @@
 right. Shown inside the main-window stack (single-window UI, sized for
 small screens) instead of a popup dialog."""
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QDoubleValidator, QIcon
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox,
                                QHBoxLayout, QLabel, QMessageBox, QPushButton,
@@ -30,8 +30,10 @@ class OpPage(QWidget):
         self.units = units
         self.widgets: dict[str, object] = {}
 
-        back = QPushButton("◀ Back")
+        back = QPushButton(QIcon(resource("arrow-left.svg")), "")
         back.setObjectName("back")
+        back.setIconSize(QSize(28, 28))
+        back.setToolTip("Back")
         back.clicked.connect(self.back_requested)
         title = QLabel(f"<b>{op.title}</b>")
         top = QHBoxLayout()

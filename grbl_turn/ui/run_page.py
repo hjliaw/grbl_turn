@@ -27,8 +27,10 @@ class RunPage(QWidget):
         self.lines = lines
         self.op_title = op.title
 
-        self.back_btn = QPushButton("◀ Back")
+        self.back_btn = QPushButton(QIcon(resource("arrow-left.svg")), "")
         self.back_btn.setObjectName("back")
+        self.back_btn.setIconSize(QSize(28, 28))
+        self.back_btn.setToolTip("Back")
         self.back_btn.clicked.connect(self.back_requested)
 
         # view toggle: plot / g-code text / console share one big area
@@ -96,6 +98,9 @@ class RunPage(QWidget):
         self.confirm = QCheckBox(
             "I checked tool clearance, spindle direction, and the travel "
             "extents above")
+        # macOS reserves invisible slack around native checkboxes and
+        # narrows every sibling row by 3px; ours is stylesheet-drawn
+        self.confirm.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
         layout.addWidget(self.confirm)
 
         self.run_btn = QPushButton("Run")

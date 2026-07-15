@@ -84,6 +84,9 @@ class MainWindow(QMainWindow):
 
     def _build_status_strip(self) -> QHBoxLayout:
         strip = QHBoxLayout()
+        # pages add their own 6px margins inside the central layout's 6px;
+        # match that so the strip lines up with page content
+        strip.setContentsMargins(6, 0, 6, 0)
         self.state_label = QLabel("disconnected")
         self.state_label.setObjectName("state")
         self.x_label = QLabel("X ?")
@@ -102,6 +105,7 @@ class MainWindow(QMainWindow):
         self.units_combo.currentTextChanged.connect(self.on_units_changed)
 
         self.device_btn = QPushButton(QIcon(resource("cable.svg")), "")
+        self.device_btn.setObjectName("device")
         self.device_btn.setIconSize(QSize(28, 28))
         self.device_btn.setToolTip("Connection and machine controls")
         self.device_btn.clicked.connect(
@@ -129,8 +133,10 @@ class MainWindow(QMainWindow):
     def _build_connect_page(self) -> QWidget:
         page = QWidget()
 
-        back = QPushButton("◀ Back")
+        back = QPushButton(QIcon(resource("arrow-left.svg")), "")
         back.setObjectName("back")
+        back.setIconSize(QSize(28, 28))
+        back.setToolTip("Back")
         back.clicked.connect(lambda: self._pop(self.connect_page))
         title = QLabel("<b>Device</b>")
         top = QHBoxLayout()

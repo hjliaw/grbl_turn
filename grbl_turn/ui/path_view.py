@@ -178,23 +178,8 @@ class PathView(QWidget):
             p.drawEllipse(int(px(self.tool[0])) - 4,
                           int(py(self.tool[1])) - 4, 8, 8)
 
-        # legend + axis hint
+        # axis hints
         p.setBrush(Qt.BrushStyle.NoBrush)
-        y = 16
-        for label, (color, width, style) in (("feed", FEED_PEN),
-                                             ("rapid", RAPID_PEN)):
-            p.setPen(QPen(color, width, style))
-            p.drawLine(10, y - 4, 40, y - 4)
-            p.setPen(QColor(200, 200, 200))
-            p.drawText(46, y, label)
-            y += 16
-        if self.tool is not None:
-            p.setPen(QPen(TOOL_COLOR, 1))
-            p.setBrush(TOOL_COLOR)
-            p.drawEllipse(22, y - 8, 8, 8)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.setPen(QColor(200, 200, 200))
-            p.drawText(46, y, "tool")
         p.setPen(QColor(140, 140, 140))
         p.drawText(rect.width() - 60, rect.height() - 8, "+Z →")
         p.drawText(10, rect.height() - 8, "X↓ (radius)")
