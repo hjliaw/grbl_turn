@@ -85,6 +85,10 @@ class RunPage(QWidget):
             b.setCheckable(True)
             self.view_group.addButton(b, idx)
             top.addWidget(b)
+        self.save_btn = icon_btn("save.svg", "Save .nc…")
+        self.save_btn.clicked.connect(self.on_save)
+        top.addSpacing(8)
+        top.addWidget(self.save_btn)
         self._set_sim_ui(False)
         self.path_view.sim_stopped.connect(lambda: self._set_sim_ui(False))
         self.view_group.idClicked.connect(self.views.setCurrentIndex)
@@ -120,7 +124,6 @@ class RunPage(QWidget):
         self.resume_btn = icon_btn("refresh.svg", "Resume")
         self.stop_btn = icon_btn("stop.svg", "STOP (soft reset)")
         self.stop_btn.setObjectName("stop")
-        save_btn = icon_btn("save.svg", "Save .nc…")
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
 
@@ -129,7 +132,6 @@ class RunPage(QWidget):
         buttons.addWidget(self.hold_btn, 1)
         buttons.addWidget(self.resume_btn, 1)
         buttons.addWidget(self.stop_btn, 2)
-        buttons.addWidget(save_btn)
         layout.addLayout(buttons)
 
         self.progress = QProgressBar()
@@ -146,7 +148,6 @@ class RunPage(QWidget):
         self.hold_btn.clicked.connect(controller.feed_hold)
         self.resume_btn.clicked.connect(controller.resume)
         self.stop_btn.clicked.connect(controller.soft_reset)
-        save_btn.clicked.connect(self.on_save)
 
         w = controller.signals
         w.progress.connect(self.on_progress)
@@ -183,6 +184,7 @@ class RunPage(QWidget):
 
     def _set_sim_ui(self, active: bool) -> None:
         self.sim_btn.setVisible(not active)
+        self.save_btn.setVisible(not active)
         for idx in (PLOT, GCODE, CONSOLE):
             self.view_group.button(idx).setVisible(not active)
         self.sim_pause_btn.setVisible(active)

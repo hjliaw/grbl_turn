@@ -202,8 +202,8 @@ class PathView(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.rect()
-        p.fillRect(rect, QColor(20, 20, 20))
-        p.setPen(QColor(70, 70, 70))
+        p.fillRect(rect, QColor(42, 42, 42))
+        p.setPen(QColor(92, 92, 92))
         p.drawRect(rect.adjusted(0, 0, -1, -1))
         if not self.segments:
             p.setPen(QColor(140, 140, 140))
