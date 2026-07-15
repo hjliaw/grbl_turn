@@ -52,6 +52,12 @@ class RunPage(QWidget):
                               QScroller.ScrollerGestureType.LeftMouseButtonGesture)
         self.views.addWidget(self.console)
 
+        def icon_btn(icon: str, tip: str) -> QPushButton:
+            b = QPushButton(QIcon(resource(icon)), "")
+            b.setIconSize(QSize(28, 28))
+            b.setToolTip(tip)
+            return b
+
         self.view_group = QButtonGroup(self)
         self.view_group.setExclusive(True)
         top = QHBoxLayout()
@@ -59,20 +65,28 @@ class RunPage(QWidget):
         top.addSpacing(8)
         top.addWidget(QLabel(f"<b>{op.title}</b>"))
         top.addStretch(1)
-        sim_btn = QPushButton("Simulate")
-        sim_btn.setToolTip("Animate the tool tip along the toolpath")
-        sim_btn.clicked.connect(self.on_simulate)
-        top.addWidget(sim_btn)
+        self.sim_btn = QPushButton("Simulate")
+        self.sim_btn.setToolTip("Animate the tool tip along the toolpath")
+        self.sim_btn.clicked.connect(self.on_simulate)
+        top.addWidget(self.sim_btn)
+        # shown in place of the view toggle while a simulation runs
+        self.sim_pause_btn = icon_btn("pause.svg", "Pause simulation")
+        self.sim_pause_btn.clicked.connect(self.on_sim_pause)
+        self.sim_quit_btn = icon_btn("x.svg", "End simulation")
+        self.sim_quit_btn.clicked.connect(
+            lambda: self.path_view.stop_simulation())
+        top.addWidget(self.sim_pause_btn)
+        top.addWidget(self.sim_quit_btn)
         top.addSpacing(8)
         for idx, name, icon in ((PLOT, "Plot", "plot.svg"),
                                 (GCODE, "G-code", "list.svg"),
                                 (CONSOLE, "Console", "terminal.svg")):
-            b = QPushButton(QIcon(resource(icon)), "")
-            b.setIconSize(QSize(28, 28))
-            b.setToolTip(name)
+            b = icon_btn(icon, name)
             b.setCheckable(True)
             self.view_group.addButton(b, idx)
             top.addWidget(b)
+        self._set_sim_ui(False)
+        self.path_view.sim_stopped.connect(lambda: self._set_sim_ui(False))
         self.view_group.idClicked.connect(self.views.setCurrentIndex)
         self.view_group.button(PLOT).setChecked(True)
 
@@ -98,12 +112,6 @@ class RunPage(QWidget):
             warn.setObjectName("warning")
             warn.setWordWrap(True)      # keep the page inside 800px
             layout.addWidget(warn)
-
-        def icon_btn(icon: str, tip: str) -> QPushButton:
-            b = QPushButton(QIcon(resource(icon)), "")
-            b.setIconSize(QSize(28, 28))
-            b.setToolTip(tip)
-            return b
 
         self.run_btn = icon_btn("play.svg", "Run")
         self.run_btn.setObjectName("run")
@@ -158,7 +166,30 @@ class RunPage(QWidget):
 
     def on_simulate(self) -> None:
         self.show_view(PLOT)
-        self.path_view.toggle_simulation()
+        self.path_view.start_simulation()
+        if self.path_view.sim_point is not None:   # empty programs: no sim
+            self._set_sim_ui(True)
+
+    def on_sim_pause(self) -> None:
+        pv = self.path_view
+        if pv.sim_paused:
+            pv.resume_simulation()
+        else:
+            pv.pause_simulation()
+        self.sim_pause_btn.setIcon(QIcon(resource(
+            "play.svg" if pv.sim_paused else "pause.svg")))
+        self.sim_pause_btn.setToolTip(
+            "Resume simulation" if pv.sim_paused else "Pause simulation")
+
+    def _set_sim_ui(self, active: bool) -> None:
+        self.sim_btn.setVisible(not active)
+        for idx in (PLOT, GCODE, CONSOLE):
+            self.view_group.button(idx).setVisible(not active)
+        self.sim_pause_btn.setVisible(active)
+        self.sim_quit_btn.setVisible(active)
+        if active:   # fresh sim always starts running
+            self.sim_pause_btn.setIcon(QIcon(resource("pause.svg")))
+            self.sim_pause_btn.setToolTip("Pause simulation")
 
     def on_run(self) -> None:
         self.run_btn.setEnabled(False)

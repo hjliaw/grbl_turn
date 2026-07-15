@@ -120,6 +120,7 @@ class PathView(QWidget):
         self.segments: list[Segment] = []
         self.tool: tuple[float, float] | None = None    # (z, x) from status
         self.sim_point: tuple[float, float] | None = None
+        self.sim_paused = False
         self._sim_t = 0.0
         self._sim_timer = QTimer(self)
         self._sim_timer.setInterval(SIM_TICK_MS)
@@ -146,12 +147,6 @@ class PathView(QWidget):
                 / (SIM_RAPID_FACTOR if s.rapid else 1.0)
                 for s in self.segments]
 
-    def toggle_simulation(self) -> None:
-        if self._sim_timer.isActive():
-            self.stop_simulation()
-        else:
-            self.start_simulation()
-
     def start_simulation(self) -> None:
         if not self.segments:
             return
@@ -159,15 +154,27 @@ class PathView(QWidget):
         feeds = sum(1 for s in self.segments if not s.rapid)
         self._sim_duration_ms = max(SIM_DURATION_MS, SIM_FEED_SEG_MS * feeds)
         self._sim_t = 0.0
+        self.sim_paused = False
         first = self.segments[0]
         self.sim_point = (first.z0, first.x0)
         self._sim_timer.start()
         self.update()
 
+    def pause_simulation(self) -> None:
+        if self.sim_point is not None:
+            self._sim_timer.stop()
+            self.sim_paused = True
+
+    def resume_simulation(self) -> None:
+        if self.sim_point is not None:
+            self.sim_paused = False
+            self._sim_timer.start()
+
     def stop_simulation(self) -> None:
-        was_running = self._sim_timer.isActive()
+        was_running = self._sim_timer.isActive() or self.sim_point is not None
         self._sim_timer.stop()
         self.sim_point = None
+        self.sim_paused = False
         if was_running:
             self.sim_stopped.emit()
         self.update()
