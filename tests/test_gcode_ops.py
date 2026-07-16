@@ -91,6 +91,40 @@ def test_taper_finish_pass_moves_both_axes():
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     finish = [l for l in lines if "X" in l and "Z-" in l and l.startswith("G1")]
     assert finish, "expected a simultaneous X/Z taper move"
+    assert not any(l.startswith("(WARNING") for l in lines)
+
+
+def test_taper_trim_full_length_passes():
+    op = BY_KEY["ext_taper"]
+    p = defaults(op) | {"trim": True}
+    lines = op.generate(p, MACHINE, Units.INCH)
+    taper_moves = [l for l in lines
+                   if l.startswith("G1") and "X" in l and "Z-" in l]
+    import math
+    from grbl_turn.ops.passes import turning_passes
+    expected = turning_passes(p["start_dia"] / 2, p["face_dia"] / 2, p["doc"])
+    assert len(taper_moves) == len(expected)   # every pass runs the cone
+    # no straight roughing plunges besides the Z0 approaches
+    plunges = [l for l in lines
+               if l.startswith("G1 Z-") and "X" not in l]
+    assert not plunges
+    # final pass lands on the target cone's end radius
+    end_r = p["face_dia"] / 2 + p["length"] * math.tan(
+        math.radians(p["angle"]))
+    assert f"X{end_r:.4f}" in taper_moves[-1]
+
+
+def test_taper_overrun_warns_but_generates():
+    # exceeding the stock / undercutting the bore is allowed with a warning
+    op = BY_KEY["ext_taper"]
+    lines = op.generate(defaults(op) | {"angle": 20.0}, MACHINE, Units.INCH)
+    assert any("WARNING" in l and "exceeds the stock" in l for l in lines)
+    assert any(l.startswith("G1") for l in lines)
+
+    op = BY_KEY["int_taper"]
+    lines = op.generate(defaults(op) | {"angle": 12.0}, MACHINE, Units.INCH)
+    assert any("WARNING" in l and "undercuts the existing bore" in l
+               for l in lines)
 
 
 def test_thread_g76_words():

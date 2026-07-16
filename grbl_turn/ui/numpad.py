@@ -50,8 +50,29 @@ class NumPad(QDialog):
         layout.addLayout(grid)
         self._validate()
 
+    def keyPressEvent(self, event) -> None:
+        """A real keyboard drives the pad too: digits, . - backspace,
+        C to clear, Enter accepts, Esc cancels."""
+        key = event.key()
+        text = event.text()
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if self.ok_btn.isEnabled():
+                self.accept()
+        elif key == Qt.Key.Key_Backspace:
+            self.on_key("⌫")
+        elif text == "-":
+            self.on_key("±")
+        elif text in ("c", "C"):
+            self.on_key("C")
+        elif text and (text.isdigit() or text == "."):
+            self.on_key(text)
+        else:
+            super().keyPressEvent(event)   # Esc rejects via QDialog
+
     def on_key(self, key: str) -> None:
         text = self.display.text()
+        if key == "." and self.integer:
+            return
         if key == "⌫":
             text = text[:-1]
         elif key == "C":

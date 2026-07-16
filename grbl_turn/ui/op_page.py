@@ -285,5 +285,8 @@ class OpPage(QWidget):
         except ValueError as exc:
             QMessageBox.warning(self, "Invalid parameters", str(exc))
             return
+        warns = [l.strip("()") for l in lines if l.startswith("(WARNING")]
+        if warns:
+            QMessageBox.warning(self, "Check parameters", "\n\n".join(warns))
         save_op_params(self.op.key, params)
         self.run_requested.emit(lines)
