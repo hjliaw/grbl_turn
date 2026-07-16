@@ -9,10 +9,12 @@ from PySide6.QtWidgets import (QDialog, QGridLayout, QLabel, QLineEdit,
 
 
 class NumPad(QDialog):
-    def __init__(self, label: str, initial: str, parent=None):
+    def __init__(self, label: str, initial: str, parent=None,
+                 integer: bool = False):
         super().__init__(parent, Qt.WindowType.Dialog
                          | Qt.WindowType.FramelessWindowHint)
         self.setModal(True)
+        self.integer = integer
 
         title = QLabel(label)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -39,6 +41,8 @@ class NumPad(QDialog):
                 if key == "OK":
                     b.setObjectName("numpadok")
                     self.ok_btn = b
+                elif key == "." and integer:
+                    b.setEnabled(False)
 
         layout = QVBoxLayout(self)
         layout.addWidget(title)
@@ -72,14 +76,16 @@ class NumPad(QDialog):
 
     def _validate(self) -> None:
         try:
-            float(self.display.text())
+            int(self.display.text()) if self.integer \
+                else float(self.display.text())
             self.ok_btn.setEnabled(True)
         except ValueError:
             self.ok_btn.setEnabled(False)
 
     @staticmethod
-    def get_value(label: str, initial: str, parent=None) -> tuple[str, bool]:
-        pad = NumPad(label, initial, parent)
+    def get_value(label: str, initial: str, parent=None,
+                  integer: bool = False) -> tuple[str, bool]:
+        pad = NumPad(label, initial, parent, integer)
         if parent is not None:
             pad.adjustSize()
             center = parent.window().geometry().center()
@@ -92,13 +98,15 @@ class NumPad(QDialog):
 class TouchNumberEdit(QLineEdit):
     """Line edit that opens the numeric keypad when tapped."""
 
-    def __init__(self, label: str, parent=None):
+    def __init__(self, label: str, parent=None, integer: bool = False):
         super().__init__(parent)
         self.pad_label = label
+        self.integer = integer
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
     def mouseReleaseEvent(self, event) -> None:
         super().mouseReleaseEvent(event)
-        text, ok = NumPad.get_value(self.pad_label, self.text(), self)
+        text, ok = NumPad.get_value(self.pad_label, self.text(), self,
+                                    self.integer)
         if ok:
             self.setText(text)

@@ -1,6 +1,8 @@
 """Connection bar: transport picker (Serial / WiFi / Simulator) and the
 matching parameter widgets."""
 
+from pathlib import Path
+
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLineEdit, QPushButton,
                                QSpinBox, QStackedWidget, QWidget)
 from serial.tools import list_ports
@@ -71,7 +73,14 @@ class ConnectBar(QWidget):
 
     def refresh_ports(self) -> None:
         self.port.clear()
-        self.port.addItems([p.device for p in list_ports.comports()])
+        ports = [p.device for p in list_ports.comports()]
+        # serial proxies (ptys/symlinks) that list_ports won't find in /dev
+        proxy = Path("/tmp/ttyproxy")
+        if proxy.is_dir():
+            ports += sorted(str(p) for p in proxy.iterdir())
+        elif proxy.exists():
+            ports.append(str(proxy))
+        self.port.addItems(ports)
 
     def make_transport(self) -> Transport:
         kind = self.kind.currentIndex()

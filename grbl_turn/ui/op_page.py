@@ -3,11 +3,11 @@ right. Shown inside the main-window stack (single-window UI, sized for
 small screens) instead of a popup dialog."""
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QDoubleValidator, QIcon
+from PySide6.QtGui import QDoubleValidator, QIcon, QIntValidator
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox,
                                QHBoxLayout, QLabel, QMessageBox, QPushButton,
-                               QScrollArea, QScroller, QSizePolicy, QSpinBox,
+                               QScrollArea, QScroller, QSizePolicy,
                                QVBoxLayout, QWidget)
 
 from grbl_turn import resource
@@ -237,11 +237,11 @@ class OpPage(QWidget):
             w.setSizePolicy(QSizePolicy.Policy.Expanding,
                             QSizePolicy.Policy.Fixed)
         elif f.kind in ("int", "rpm"):
-            w = QSpinBox()
-            w.setRange(int(f.minimum), int(f.maximum))
-            w.setValue(int(saved) if saved is not None else int(f.default))
-            w.setSizePolicy(QSizePolicy.Policy.Expanding,
-                            QSizePolicy.Policy.Fixed)
+            w = TouchNumberEdit(f.label, integer=True)
+            w.setValidator(QIntValidator(int(f.minimum), int(f.maximum), w))
+            w.setAlignment(Qt.AlignRight)
+            w.setText(str(int(saved) if saved is not None
+                          else int(f.default)))
         else:  # dia, len, zpos, feed, angle, pitch -> numpad-backed edit
             w = TouchNumberEdit(f.label)
             validator = QDoubleValidator(f.minimum, f.maximum, 4, w)
@@ -267,7 +267,10 @@ class OpPage(QWidget):
             elif f.kind == "choice":
                 params[f.name] = w.currentText()
             elif f.kind in ("int", "rpm"):
-                params[f.name] = w.value()
+                try:
+                    params[f.name] = int(w.text().strip())
+                except ValueError:
+                    raise ValueError(f"'{f.label}' must be a whole number")
             else:
                 text = w.text().strip()
                 if not text:
