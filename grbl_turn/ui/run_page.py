@@ -1,23 +1,20 @@
 """Preview + run page: one big view area toggled between the toolpath plot,
 the G-code text, and the comm console (simplest layout for a touch-only
-800x480 screen). Streams with progress; Back is locked while streaming."""
+800x480 screen). Back is locked while streaming; the red tool dot on the
+plot is the run feedback."""
 
-import time
-
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel,
-                               QPlainTextEdit, QProgressBar, QPushButton,
-                               QScroller, QStackedWidget, QVBoxLayout, QWidget)
+                               QPlainTextEdit, QPushButton, QScroller,
+                               QStackedWidget, QVBoxLayout, QWidget)
 
 from grbl_turn import resource
 from grbl_turn.ops.base import Operation
-from grbl_turn.ui.path_view import PathView, line_durations
+from grbl_turn.ui.path_view import PathView
 from grbl_turn.units import Units
 
 PLOT, GCODE, CONSOLE = range(3)
-PROGRESS_SCALE = 1000
-PROGRESS_TICK_MS = 250
 
 
 class RunPage(QWidget):
@@ -102,35 +99,11 @@ class RunPage(QWidget):
         self.view_group.idClicked.connect(self.views.setCurrentIndex)
         self.view_group.button(PLOT).setChecked(True)
 
-        # time-weighted progress: GRBL acks a line when it is buffered, not
-        # when it is cut, so line counts jump ahead. Weight each acked line
-        # by its estimated duration, and ramp with the wall clock between
-        # acks — never past the acked time, so feed hold still freezes it.
-        self._cum_time = [0.0]
-        for d in line_durations(lines):
-            self._cum_time.append(self._cum_time[-1] + d)
-        self._acked_time = 0.0
-        self._run_t0: float | None = None
-        self._progress_timer = QTimer(self)
-        self._progress_timer.setInterval(PROGRESS_TICK_MS)
-        self._progress_timer.timeout.connect(self._tick_progress)
-
-        self.progress = QProgressBar()
-        self.progress.setRange(0, PROGRESS_SCALE)
-        self.progress.setValue(0)
-        self.status_label = QLabel(
-            "" if controller.is_connected
-            else "Not connected — connect first to run")
-        bottom = QHBoxLayout()
-        bottom.addWidget(self.progress, 1)
-        bottom.addWidget(self.status_label, 1)
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(top)
         layout.addWidget(self.views, 1)
-        layout.addLayout(bottom)
 
         if op.is_threading:
             warn = QLabel(
@@ -165,9 +138,10 @@ class RunPage(QWidget):
         self.stop_btn.clicked.connect(controller.soft_reset)
 
         w = controller.signals
-        w.progress.connect(self.on_progress)
         w.stream_finished.connect(self.on_finished)
         w.comm_log.connect(self.on_log)
+        # bound-method slots so the worker-thread signals queue to the GUI
+        # thread; a bare lambda would run on the worker thread
         w.connected.connect(self.on_connected)
         w.disconnected.connect(self.on_disconnected)
 
@@ -215,45 +189,15 @@ class RunPage(QWidget):
         self.back_btn.setEnabled(False)     # stop or finish before leaving
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(True)
-        self.status_label.setText("running…")
         self.controller.stream(self.lines)
-        self._acked_time = 0.0
-        self._run_t0 = time.monotonic()
-        self.progress.setValue(0)
-        self._progress_timer.start()
 
-    def on_connected(self, desc: str) -> None:
-        self.status_label.setText("")
+    def on_connected(self, _desc: str) -> None:
         self._update_buttons()
 
-    def on_disconnected(self, reason: str) -> None:
-        self.status_label.setText("Not connected — connect first to run")
+    def on_disconnected(self, _reason: str) -> None:
         self._update_buttons()
-
-    def on_progress(self, done: int, total: int) -> None:
-        n = len(self._cum_time) - 1
-        if total == n and self._cum_time[-1] > 0:
-            self._acked_time = self._cum_time[min(done, n)]
-            self._tick_progress()
-        else:   # lines the page didn't estimate: plain line fraction
-            self.progress.setValue(
-                round(PROGRESS_SCALE * done / max(total, 1)))
-
-    def _tick_progress(self) -> None:
-        if self._run_t0 is None or self._cum_time[-1] <= 0:
-            return
-        elapsed = time.monotonic() - self._run_t0
-        frac = min(elapsed, self._acked_time) / self._cum_time[-1]
-        # hold just short of full until the controller reports completion
-        self.progress.setValue(min(round(PROGRESS_SCALE * frac),
-                                   PROGRESS_SCALE - 10))
 
     def on_finished(self, ok: bool, msg: str) -> None:
-        self._progress_timer.stop()
-        self._run_t0 = None
-        if ok:
-            self.progress.setValue(PROGRESS_SCALE)
-        self.status_label.setText(msg)
         self.back_btn.setEnabled(True)
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(False)
@@ -272,4 +216,3 @@ class RunPage(QWidget):
         if path:
             with open(path, "w") as f:
                 f.write("\n".join(self.lines) + "\n")
-            self.status_label.setText(f"saved to {path}")
