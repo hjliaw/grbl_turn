@@ -100,6 +100,7 @@ class OpPage(QWidget):
             if f.placement == "left":   # mode selector above the diagram
                 widget = self._make_widget(f, saved.get(f.name))
                 self.widgets[f.name] = widget
+                left.insertSpacing(left.count() - 1, 16)
                 left.insertWidget(left.count() - 1, widget)
                 continue
             if f.group not in groups:
@@ -113,6 +114,9 @@ class OpPage(QWidget):
             self.widgets[f.name] = widget
             label = self._row_label(f.label)
             box = self._with_unit(f, widget)
+            # QFormLayout top-aligns the label in its row; give it the
+            # field's height so its own AlignVCenter centers the text
+            label.setMinimumHeight(box.sizeHint().height())
             groups[f.group].addRow(label, box)
             self._rows[f.name] = [label, box]
 

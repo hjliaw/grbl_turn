@@ -278,8 +278,9 @@ class PathView(QWidget):
             p.drawEllipse(int(px(self.sim_point[0])) - 4,
                           int(py(self.sim_point[1])) - 4, 8, 8)
 
-        # axis hints
+        # axis hints, tucked under the centerline where no cutting happens
+        hint_y = int(py(0.0) if xmin <= 0.0 <= xmax else margin) + 16
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QColor(140, 140, 140))
-        p.drawText(rect.width() - 60, rect.height() - 8, "+Z →")
-        p.drawText(10, rect.height() - 8, "X↓ (radius)")
+        p.drawText(rect.width() - 60, hint_y, "+Z →")
+        p.drawText(10, hint_y, "X↓ (radius)")

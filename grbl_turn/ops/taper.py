@@ -31,7 +31,7 @@ def _fields(internal: bool) -> list[Field]:
             Field("target_dia", "Target diameter at face", "dia", 0.645,
                   group="X (cross-slide)", tooltip=target_tip,
                   visible_when=("mode", MODE_TRIM)),
-            Field("face_dia", "Diameter at face (large end)", "dia", 0.625,
+            Field("face_dia", "Diameter at face", "dia", 0.625,
                   group="X (cross-slide)",
                   tooltip="Finished size when cutting from stock; the "
                           "existing surface when trimming"),
@@ -44,7 +44,7 @@ def _fields(internal: bool) -> list[Field]:
             Field("target_dia", "Target diameter at face", "dia", 0.480,
                   group="X (cross-slide)", tooltip=target_tip,
                   visible_when=("mode", MODE_TRIM)),
-            Field("face_dia", "Diameter at face (small end)", "dia", 0.500,
+            Field("face_dia", "Diameter at face", "dia", 0.500,
                   group="X (cross-slide)",
                   tooltip="Finished size when cutting from stock; the "
                           "existing surface when trimming"),
