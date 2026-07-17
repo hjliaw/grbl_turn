@@ -5,8 +5,8 @@ work on a 7" screen)."""
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QLabel,
-                               QMainWindow, QMessageBox, QPushButton,
+from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout,
+                               QLabel, QMainWindow, QMessageBox, QPushButton,
                                QSizePolicy, QStackedWidget, QToolButton,
                                QVBoxLayout, QWidget)
 
@@ -120,11 +120,16 @@ class MainWindow(QMainWindow):
                              (self.rpm_label, 120)):
             label.setMinimumWidth(width)
 
-        strip.addWidget(self.x_label)
-        strip.addSpacing(16)
-        strip.addWidget(self.z_label)
-        strip.addSpacing(16)
-        strip.addWidget(self.rpm_label)
+        dro_panel = QFrame()
+        dro_panel.setObjectName("dropanel")
+        dro_row = QHBoxLayout(dro_panel)
+        dro_row.setContentsMargins(12, 3, 12, 3)
+        dro_row.setSpacing(16)
+        dro_row.addWidget(self.x_label)
+        dro_row.addWidget(self.z_label)
+        dro_row.addWidget(self.rpm_label)
+
+        strip.addWidget(dro_panel)
         strip.addStretch(1)   # state grows leftward into the stretch
         strip.addWidget(self.state_label)
         strip.addSpacing(12)

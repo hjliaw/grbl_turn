@@ -105,9 +105,13 @@ QGroupBox::title {
     color: rgb(180, 200, 180);
 }
 QLabel#dro {
-    font-family: monospace;
-    font-size: 20px;
+    font-family: "Menlo", "Monaco", "DejaVu Sans Mono", monospace;
+    font-size: 22px;
     color: rgb(120, 220, 120);
+}
+QFrame#dropanel {
+    border: 1px solid rgb(86, 86, 86);
+    border-radius: 6px;
 }
 QLabel#state {
     font-size: 18px;
