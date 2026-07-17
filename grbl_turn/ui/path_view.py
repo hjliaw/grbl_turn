@@ -161,11 +161,10 @@ def segment_extents(segments: list[Segment]) -> dict[str, tuple[float, float]]:
 
 @dataclass
 class Profile:
-    """Part silhouette sampled on a uniform Z grid (None = no material
-    information in that column, bore mode only)."""
+    """Part silhouette sampled on a uniform Z grid."""
     mode: str
     zs: list[float]
-    env: list[float | None]
+    env: list[float]
     stock: float           # radius of the untouched surface
 
 PROFILE_COLS = 400
@@ -181,11 +180,13 @@ def feed_profile(segments: list[Segment], mode: str) -> Profile | None:
         return None
     zl = min(min(s.z0, s.z1) for s in feeds)
     zr = max(max(s.z0, s.z1) for s in feeds)
-    if zr - zl <= 1e-9:    # plunge-only (parting): bar spans the whole plot
-        zl = min(zl, min(min(s.z0, s.z1) for s in segments))
-        zr = max(zr, max(max(s.z0, s.z1) for s in segments))
-        if zr - zl <= 1e-9:
-            return None
+    # stock runs from the face (Z0 by app convention) into the chuck: clamp
+    # away cut overshoot into air on the right, overhang a little on the
+    # left so the bar reads as continuing stock
+    zr = 0.0
+    if zr - zl <= 1e-9:
+        return None
+    zl -= 0.06 * (zr - zl)
     n = PROFILE_COLS
     dz = (zr - zl) / (n - 1)
     pick = max if mode == "bore" else min
@@ -211,10 +212,8 @@ def feed_profile(segments: list[Segment], mode: str) -> Profile | None:
             env.append(cur)
             if c is not None:
                 cur = min(cur, c)
-    elif mode == "turn":
+    else:      # turn: untouched columns keep stock; bore: the pilot wall
         env = [stock if c is None else c for c in cols]
-    else:
-        env = cols
     return Profile(mode, [zl + i * dz for i in range(n)], env, stock)
 
 
@@ -351,6 +350,8 @@ class PathView(QWidget):
         zs = [v for s in self.segments for v in (s.z0, s.z1)]
         xs = [v for s in self.segments for v in (s.x0, s.x1)]
         xs.append(0.0)                       # always show the centerline
+        if self.profile:                     # silhouette overhangs the cuts
+            zs += (self.profile.zs[0], self.profile.zs[-1])
         zmin, zmax = min(zs), max(zs)
         xmin, xmax = min(xs), max(xs)
         z_span = max(zmax - zmin, 1e-9)
@@ -407,7 +408,9 @@ class PathView(QWidget):
                        f"{round(v, 9) or 0.0:g}")
             v += step
 
+        p.setClipRect(left, top, right - left, bottom - top)
         self._draw_silhouette(p, px, py, bottom)
+        p.setClipping(False)
 
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QPen(FRAME_COLOR, 1))
@@ -463,20 +466,15 @@ class PathView(QWidget):
         p.setPen(Qt.PenStyle.NoPen)
         if prof.mode == "bore":
             # bore wall: material from the cut surface down to the plot edge
-            run: list[QPointF] = []
-            for z, r in zip(prof.zs + [0.0], prof.env + [None]):
-                if r is not None:
-                    run.append(QPointF(px(z), py(r)))
-                elif run:
-                    poly = QPolygonF(run)
-                    poly.append(QPointF(run[-1].x(), bottom))
-                    poly.append(QPointF(run[0].x(), bottom))
-                    p.setBrush(PART_FILL)
-                    p.drawPolygon(poly)
-                    p.setPen(QPen(PROFILE_COLOR, 2))
-                    p.drawPolyline(QPolygonF(run))
-                    p.setPen(Qt.PenStyle.NoPen)
-                    run = []
+            pts = [QPointF(px(z), py(r)) for z, r in zip(prof.zs, prof.env)]
+            poly = QPolygonF(pts)
+            poly.append(QPointF(pts[-1].x(), bottom))
+            poly.append(QPointF(pts[0].x(), bottom))
+            p.setBrush(PART_FILL)
+            p.drawPolygon(poly)
+            p.setPen(QPen(PROFILE_COLOR, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawPolyline(QPolygonF(pts))
             return
         # stock first; the removed skin stays visible above the part body
         z0, z1 = prof.zs[0], prof.zs[-1]

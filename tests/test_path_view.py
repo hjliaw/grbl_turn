@@ -81,8 +81,11 @@ def test_feed_profile_turning_envelope():
             Segment(0.1, 0.3, -1.0, 0.3, rapid=False)]
     prof = feed_profile(segs, "turn")
     assert prof.stock == pytest.approx(0.4)
-    # every column is cut down to the deepest pass
-    assert all(e == pytest.approx(0.3) for e in prof.env)
+    # bar runs from a little beyond the cuts (stock) to the face (Z0)
+    assert prof.zs[0] < -1.0 and prof.zs[-1] == pytest.approx(0.0)
+    assert prof.env[0] == pytest.approx(0.4)    # chuck-side overhang
+    assert prof.env[-1] == pytest.approx(0.3)   # cut down at the face
+    assert min(prof.env) == pytest.approx(0.3)
 
 
 def test_feed_profile_facing_clears_right_of_cut():
@@ -98,16 +101,18 @@ def test_feed_profile_bore_envelope():
             Segment(0.1, 0.25, -0.5, 0.25, rapid=False)]
     prof = feed_profile(segs, "bore")
     assert prof.stock == pytest.approx(0.2)     # the pilot bore surface
-    assert all(e == pytest.approx(0.25) for e in prof.env)
+    assert prof.env[0] == pytest.approx(0.2)    # overhang: pilot wall
+    assert prof.env[-1] == pytest.approx(0.25)
+    assert max(prof.env) == pytest.approx(0.25)
 
 
 def test_feed_profile_parting_notch():
-    # plunge-only cut: the bar spans the rapids' Z range, notched at the groove
+    # plunge-only cut: the bar spans groove-overhang to face, notched
     segs = [Segment(0.1, 0.55, -0.5, 0.55, rapid=True),
             Segment(-0.5, 0.55, -0.5, 0.02, rapid=False),
             Segment(-0.5, 0.02, -0.5, 0.55, rapid=True)]
     prof = feed_profile(segs, "turn")
-    assert (prof.zs[0], prof.zs[-1]) == pytest.approx((-0.5, 0.1))
+    assert prof.zs[0] < -0.5 and prof.zs[-1] == pytest.approx(0.0)
     assert min(prof.env) == pytest.approx(0.02)   # the groove
     assert prof.env[-1] == pytest.approx(0.55)    # bar kept beside it
 

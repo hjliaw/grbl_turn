@@ -65,6 +65,7 @@ QToolTip {
     background-color: rgb(66, 66, 66);
     color: rgb(255, 255, 255);
     border: 1px solid rgb(112, 112, 112);
+    font-size: 16px;
 }
 QSpinBox::up-button, QSpinBox::down-button {
     width: 40px;
