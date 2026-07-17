@@ -93,6 +93,62 @@ def parse_segments(lines: list[str]) -> list[Segment]:
     return segments
 
 
+# nominal rates for duration estimates; the spindle is manual (no S words)
+# so threading assumes an RPM. Absolute accuracy doesn't matter — progress
+# only needs the relative weight between lines.
+EST_THREAD_RPM = 300.0
+EST_RAPID_MM = 1500.0        # units/min
+EST_RAPID_INCH = 60.0
+
+
+def line_durations(lines: list[str]) -> list[float]:
+    """Estimated seconds per non-blank line, parallel to the list the
+    streamer acks (it drops blank lines the same way)."""
+    out: list[float] = []
+    modal = 0
+    pos: tuple[float, float] | None = None
+    feed = 60.0                  # units/min; placeholder until an F arrives
+    rapid = EST_RAPID_MM
+    pitch = 1.0                  # units/rev; placeholder until a G33 K
+    for line in (l.strip() for l in lines if l.strip()):
+        w = _words(line)
+        gs = w.get("G", [])
+        if 20 in gs:
+            rapid = EST_RAPID_INCH
+        if 21 in gs:
+            rapid = EST_RAPID_MM
+        if "F" in w:
+            feed = w["F"][0]
+        seconds = 0.0
+        if 76 in gs:             # whole canned cycle on one line
+            thread_feed = w.get("P", [pitch])[0] * EST_THREAD_RPM
+            if pos is not None:
+                for s in _expand_g76(w, pos[0], pos[1]):
+                    d = math.hypot(s.z1 - s.z0, s.x1 - s.x0)
+                    seconds += 60.0 * d / (rapid if s.rapid
+                                           else max(thread_feed, 1e-9))
+            out.append(seconds)
+            continue
+        for g in gs:
+            if g in (0, 1, 33):
+                modal = int(g)
+        if ("X" in w or "Z" in w) and pos is not None:
+            z = w["Z"][0] if "Z" in w else pos[0]
+            x = w["X"][0] if "X" in w else pos[1]
+            if modal == 33:
+                if "K" in w:
+                    pitch = w["K"][0]
+                rate = max(pitch * EST_THREAD_RPM, 1e-9)
+            else:
+                rate = rapid if modal == 0 else max(feed, 1e-9)
+            seconds = 60.0 * math.hypot(z - pos[0], x - pos[1]) / rate
+            pos = (z, x)
+        elif "X" in w or "Z" in w:
+            pos = (w.get("Z", [0.0])[0], w.get("X", [0.0])[0])
+        out.append(seconds)
+    return out
+
+
 def segment_extents(segments: list[Segment]) -> dict[str, tuple[float, float]]:
     """Min/max positions the tool actually reaches. Unlike scanning X/Z
     words, this includes G76 passes (depth hides in I/J/K words)."""

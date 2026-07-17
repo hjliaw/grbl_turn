@@ -4,8 +4,8 @@ import pytest
 
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY
-from grbl_turn.ui.path_view import (Segment, feed_profile, parse_segments,
-                                    segment_extents)
+from grbl_turn.ui.path_view import (Segment, feed_profile, line_durations,
+                                    parse_segments, segment_extents)
 from grbl_turn.units import Units
 
 MACHINE = MachineProfile()
@@ -115,6 +115,27 @@ def test_feed_profile_parting_notch():
 def test_feed_profile_needs_feeds():
     assert feed_profile([Segment(0.1, 0.5, -1.0, 0.5, rapid=True)],
                         "turn") is None
+
+
+def test_line_durations_weight_cuts_over_rapids():
+    lines = ["(header)", "G20 G18 G90 G94",
+             "G0 X0.5 Z0.1", "G1 Z-1.0 F2", "G0 X0.6", "", "G0 Z0.1"]
+    dur = line_durations(lines)
+    assert len(dur) == 6              # blank dropped, like the streamer
+    assert dur[0] == 0.0 and dur[1] == 0.0
+    # the 1.1"-long cut at F2 dwarfs the rapids around it
+    assert dur[3] == pytest.approx(33.0)
+    assert dur[3] > 10 * max(dur[2], dur[4], dur[5])
+
+
+def test_line_durations_g76_weighs_the_whole_cycle():
+    op = BY_KEY["ext_thread"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    stripped = [l for l in lines if l.strip()]
+    dur = line_durations(lines)
+    assert len(dur) == len(stripped)
+    g76_time = sum(d for l, d in zip(stripped, dur) if l.startswith("G76"))
+    assert g76_time > 0.5 * sum(dur)   # the cycle dominates the program
 
 
 def test_comments_and_blank_lines_ignored():
