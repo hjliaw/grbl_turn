@@ -9,9 +9,8 @@ from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel,
                                QScroller, QStackedWidget, QVBoxLayout, QWidget)
 
 from grbl_turn import resource
-from grbl_turn.gcode import extents
 from grbl_turn.ops.base import Operation
-from grbl_turn.ui.path_view import PathView, segment_extents
+from grbl_turn.ui.path_view import PathView
 from grbl_turn.units import Units
 
 PLOT, GCODE, CONSOLE = range(3)
@@ -99,20 +98,21 @@ class RunPage(QWidget):
         self.view_group.idClicked.connect(self.views.setCurrentIndex)
         self.view_group.button(PLOT).setChecked(True)
 
-        # segments include the passes G76 will cut; word-scanning misses them
-        ext = segment_extents(self.path_view.segments) or extents(lines)
-        dec = units.display_decimals
-        parts = [f"{axis} {lo:+.{dec}f} … {hi:+.{dec}f}"
-                 for axis, (lo, hi) in ext.items()]
-        extent_label = QLabel("Travel extents:   " + "    ".join(parts))
-        extent_label.setObjectName("caption")
+        self.progress = QProgressBar()
+        self.progress.setRange(0, len(lines))
+        self.status_label = QLabel(
+            "" if controller.is_connected
+            else "Not connected — connect first to run")
+        bottom = QHBoxLayout()
+        bottom.addWidget(self.progress, 1)
+        bottom.addWidget(self.status_label, 1)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
         layout.addLayout(top)
         layout.addWidget(self.views, 1)
-        layout.addWidget(extent_label)
+        layout.addLayout(bottom)
 
         if op.is_threading:
             warn = QLabel(
@@ -140,16 +140,6 @@ class RunPage(QWidget):
         buttons.addWidget(self.resume_btn, 1)
         buttons.addWidget(self.stop_btn, 1)
         layout.addLayout(buttons)
-
-        self.progress = QProgressBar()
-        self.progress.setRange(0, len(lines))
-        self.status_label = QLabel(
-            "" if controller.is_connected
-            else "Not connected — connect first to run")
-        bottom = QHBoxLayout()
-        bottom.addWidget(self.progress, 1)
-        bottom.addWidget(self.status_label, 1)
-        layout.addLayout(bottom)
 
         self.run_btn.clicked.connect(self.on_run)
         self.hold_btn.clicked.connect(controller.feed_hold)
