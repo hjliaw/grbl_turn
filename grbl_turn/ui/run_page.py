@@ -126,7 +126,9 @@ class RunPage(QWidget):
         self.run_btn.setObjectName("run")
         self.run_btn.setEnabled(False)
         self.hold_btn = icon_btn("pause.svg", "Hold")
+        self.hold_btn.setObjectName("hold")
         self.resume_btn = icon_btn("refresh.svg", "Resume")
+        self.resume_btn.setObjectName("resume")
         self.stop_btn = icon_btn("stop.svg", "STOP (soft reset)")
         self.stop_btn.setObjectName("stop")
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
@@ -136,7 +138,7 @@ class RunPage(QWidget):
         buttons.addWidget(self.run_btn, 1)
         buttons.addWidget(self.hold_btn, 1)
         buttons.addWidget(self.resume_btn, 1)
-        buttons.addWidget(self.stop_btn, 2)
+        buttons.addWidget(self.stop_btn, 1)
         layout.addLayout(buttons)
 
         self.progress = QProgressBar()

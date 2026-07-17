@@ -132,6 +132,9 @@ QPushButton#run {
     font-weight: bold;
     min-height: 36px;
 }
+QPushButton#hold, QPushButton#resume {
+    min-height: 36px;
+}
 QPushButton#stop:disabled {
     background-color: rgb(72, 46, 46);
 }
