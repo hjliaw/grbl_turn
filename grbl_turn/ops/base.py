@@ -63,6 +63,11 @@ class Operation:
     fields: list[Field]
     generate: Callable[[dict, MachineProfile, Units], list[str]]
     is_threading: bool = False
+    # how the preview derives the part silhouette from the cutting moves:
+    #   turn - cuts lower the surface where they pass (OD work, parting)
+    #   face - cuts also remove everything to their +Z side (facing)
+    #   bore - cuts raise the bore surface; material sits outside it
+    silhouette: str = "turn"
 
 
 # The app never touches the spindle: the user's machine is adjusted

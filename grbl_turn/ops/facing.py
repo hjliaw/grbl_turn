@@ -46,4 +46,4 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
 
 
 OP = Operation("ext_facing", "Facing", "ext_facing.svg", "ext_facing.svg",
-               FIELDS, generate)
+               FIELDS, generate, silhouette="face")

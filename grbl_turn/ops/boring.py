@@ -51,4 +51,4 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
 
 
 OP = Operation("int_boring", "Boring", "int_boring.svg", "int_boring.svg",
-               FIELDS, generate)
+               FIELDS, generate, silhouette="bore")

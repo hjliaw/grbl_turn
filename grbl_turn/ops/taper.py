@@ -173,4 +173,5 @@ def generate_int(p, machine, units):
 OP_EXT = Operation("ext_taper", "External taper", "ext_taper.svg",
                    "ext_taper.svg", _fields(False), generate_ext)
 OP_INT = Operation("int_taper", "Internal taper", "int_taper.svg",
-                   "int_taper.svg", _fields(True), generate_int)
+                   "int_taper.svg", _fields(True), generate_int,
+                   silhouette="bore")

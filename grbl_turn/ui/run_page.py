@@ -35,7 +35,7 @@ class RunPage(QWidget):
 
         # view toggle: plot / g-code text / console share one big area
         self.views = QStackedWidget()
-        self.path_view = PathView(lines)
+        self.path_view = PathView(lines, silhouette=op.silhouette)
         self.views.addWidget(self.path_view)
 
         preview = QPlainTextEdit("\n".join(lines))
@@ -65,8 +65,8 @@ class RunPage(QWidget):
         top.addSpacing(8)
         top.addWidget(QLabel(f"<b>{op.title}</b>"))
         top.addStretch(1)
-        self.sim_btn = QPushButton("Simulate")
-        self.sim_btn.setToolTip("Animate the tool tip along the toolpath")
+        self.sim_btn = icon_btn(
+            "play.svg", "Simulate: animate the tool tip along the toolpath")
         self.sim_btn.clicked.connect(self.on_simulate)
         top.addWidget(self.sim_btn)
         # shown in place of the view toggle while a simulation runs
@@ -78,13 +78,18 @@ class RunPage(QWidget):
         top.addWidget(self.sim_pause_btn)
         top.addWidget(self.sim_quit_btn)
         top.addSpacing(8)
-        for idx, name, icon in ((PLOT, "Plot", "plot.svg"),
-                                (GCODE, "G-code", "list.svg"),
-                                (CONSOLE, "Console", "terminal.svg")):
+        seg = QHBoxLayout()      # joined segmented control, not loose buttons
+        seg.setSpacing(0)
+        for (idx, name, icon), pos in zip(((PLOT, "Plot", "plot.svg"),
+                                           (GCODE, "G-code", "list.svg"),
+                                           (CONSOLE, "Console", "terminal.svg")),
+                                          ("first", "mid", "last")):
             b = icon_btn(icon, name)
             b.setCheckable(True)
+            b.setProperty("seg", pos)
             self.view_group.addButton(b, idx)
-            top.addWidget(b)
+            seg.addWidget(b)
+        top.addLayout(seg)
         self.save_btn = icon_btn("save.svg", "Save .nc…")
         self.save_btn.clicked.connect(self.on_save)
         top.addSpacing(8)
@@ -99,8 +104,8 @@ class RunPage(QWidget):
         dec = units.display_decimals
         parts = [f"{axis} {lo:+.{dec}f} … {hi:+.{dec}f}"
                  for axis, (lo, hi) in ext.items()]
-        extent_label = QLabel("Travel extents:   " + "      ".join(parts))
-        extent_label.setObjectName("dro")
+        extent_label = QLabel("Travel extents:   " + "    ".join(parts))
+        extent_label.setObjectName("caption")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)

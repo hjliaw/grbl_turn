@@ -4,7 +4,8 @@ import pytest
 
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY
-from grbl_turn.ui.path_view import parse_segments, segment_extents
+from grbl_turn.ui.path_view import (Segment, feed_profile, parse_segments,
+                                    segment_extents)
 from grbl_turn.units import Units
 
 MACHINE = MachineProfile()
@@ -73,6 +74,47 @@ def test_g76_extents_include_thread_depth():
     assert ext["X"][0] == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
     # word-scanning only sees the drive line — the very bug this guards
     assert extents(lines)["X"][0] > ext["X"][0]
+
+
+def test_feed_profile_turning_envelope():
+    segs = [Segment(0.1, 0.4, -1.0, 0.4, rapid=False),
+            Segment(0.1, 0.3, -1.0, 0.3, rapid=False)]
+    prof = feed_profile(segs, "turn")
+    assert prof.stock == pytest.approx(0.4)
+    # every column is cut down to the deepest pass
+    assert all(e == pytest.approx(0.3) for e in prof.env)
+
+
+def test_feed_profile_facing_clears_right_of_cut():
+    segs = [Segment(-0.02, 0.4, -0.02, 0.0, rapid=False),
+            Segment(-0.01, 0.4, -0.01, 0.0, rapid=False)]
+    prof = feed_profile(segs, "face")
+    assert prof.env[0] == pytest.approx(0.4)    # the finished face wall
+    assert prof.env[-1] == pytest.approx(0.0)   # everything right: removed
+
+
+def test_feed_profile_bore_envelope():
+    segs = [Segment(0.1, 0.2, -0.5, 0.2, rapid=False),
+            Segment(0.1, 0.25, -0.5, 0.25, rapid=False)]
+    prof = feed_profile(segs, "bore")
+    assert prof.stock == pytest.approx(0.2)     # the pilot bore surface
+    assert all(e == pytest.approx(0.25) for e in prof.env)
+
+
+def test_feed_profile_parting_notch():
+    # plunge-only cut: the bar spans the rapids' Z range, notched at the groove
+    segs = [Segment(0.1, 0.55, -0.5, 0.55, rapid=True),
+            Segment(-0.5, 0.55, -0.5, 0.02, rapid=False),
+            Segment(-0.5, 0.02, -0.5, 0.55, rapid=True)]
+    prof = feed_profile(segs, "turn")
+    assert (prof.zs[0], prof.zs[-1]) == pytest.approx((-0.5, 0.1))
+    assert min(prof.env) == pytest.approx(0.02)   # the groove
+    assert prof.env[-1] == pytest.approx(0.55)    # bar kept beside it
+
+
+def test_feed_profile_needs_feeds():
+    assert feed_profile([Segment(0.1, 0.5, -1.0, 0.5, rapid=True)],
+                        "turn") is None
 
 
 def test_comments_and_blank_lines_ignored():

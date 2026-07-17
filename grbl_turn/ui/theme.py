@@ -117,6 +117,11 @@ QLabel#warning {
     color: rgb(255, 170, 60);
     font-weight: bold;
 }
+QLabel#caption {
+    font-family: monospace;
+    font-size: 14px;
+    color: rgb(168, 180, 168);
+}
 QPushButton#stop {
     background-color: rgb(140, 30, 30);
     font-weight: bold;
@@ -127,7 +132,26 @@ QPushButton#run {
     font-weight: bold;
     min-height: 36px;
 }
-QPushButton#back, QPushButton#device {
+QPushButton#stop:disabled {
+    background-color: rgb(72, 46, 46);
+}
+QPushButton#run:disabled {
+    background-color: rgb(44, 62, 44);
+}
+QPushButton[seg="first"] {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+QPushButton[seg="mid"] {
+    border-radius: 0;
+    border-left: none;
+}
+QPushButton[seg="last"] {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+}
+QPushButton#back {
     background-color: rgb(160, 175, 160);
 }
 QPushButton#numpad, QPushButton#numpadok {

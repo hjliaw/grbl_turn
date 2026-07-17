@@ -131,4 +131,4 @@ OP_EXT = Operation("ext_thread", "External thread", "ext_thread2.svg",
                    is_threading=True)
 OP_INT = Operation("int_thread", "Internal thread", "int_thread2.svg",
                    "int_thread2.svg", _fields(True), generate_int,
-                   is_threading=True)
+                   is_threading=True, silhouette="bore")

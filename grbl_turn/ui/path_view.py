@@ -13,8 +13,8 @@ import math
 import re
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from grbl_turn.ops.passes import thread_infeeds
@@ -103,10 +103,85 @@ def segment_extents(segments: list[Segment]) -> dict[str, tuple[float, float]]:
     return {"X": (min(xs), max(xs)), "Z": (min(zs), max(zs))}
 
 
+@dataclass
+class Profile:
+    """Part silhouette sampled on a uniform Z grid (None = no material
+    information in that column, bore mode only)."""
+    mode: str
+    zs: list[float]
+    env: list[float | None]
+    stock: float           # radius of the untouched surface
+
+PROFILE_COLS = 400
+
+
+def feed_profile(segments: list[Segment], mode: str) -> Profile | None:
+    """Derive the finished-part surface from the cutting moves alone: each
+    feed move redefines the surface at the radius it passed. Columns no cut
+    touched keep the stock radius; "face" cuts also clear everything to
+    their +Z side; "bore" cuts raise the bore wall instead."""
+    feeds = [s for s in segments if not s.rapid]
+    if not feeds:
+        return None
+    zl = min(min(s.z0, s.z1) for s in feeds)
+    zr = max(max(s.z0, s.z1) for s in feeds)
+    if zr - zl <= 1e-9:    # plunge-only (parting): bar spans the whole plot
+        zl = min(zl, min(min(s.z0, s.z1) for s in segments))
+        zr = max(zr, max(max(s.z0, s.z1) for s in segments))
+        if zr - zl <= 1e-9:
+            return None
+    n = PROFILE_COLS
+    dz = (zr - zl) / (n - 1)
+    pick = max if mode == "bore" else min
+    cols: list[float | None] = [None] * n
+    for s in feeds:
+        a, b = sorted((s.z0, s.z1))
+        i0 = max(0, math.ceil((a - zl) / dz - 1e-9))
+        i1 = min(n - 1, math.floor((b - zl) / dz + 1e-9))
+        if i1 < i0:        # narrower than one column: snap to the nearest
+            i0 = i1 = min(n - 1, max(0, round((0.5 * (a + b) - zl) / dz)))
+        for i in range(i0, i1 + 1):
+            if abs(s.z1 - s.z0) < 1e-12:
+                x = pick(s.x0, s.x1)
+            else:
+                f = (zl + i * dz - s.z0) / (s.z1 - s.z0)
+                x = s.x0 + min(max(f, 0.0), 1.0) * (s.x1 - s.x0)
+            cols[i] = x if cols[i] is None else pick(cols[i], x)
+    xs = [v for s in feeds for v in (s.x0, s.x1)]
+    stock = min(xs) if mode == "bore" else max(xs)
+    if mode == "face":     # material right of a facing cut is gone too;
+        env, cur = [], stock       # the drop lands after the cut column so
+        for c in cols:             # the finished face reads as a wall
+            env.append(cur)
+            if c is not None:
+                cur = min(cur, c)
+    elif mode == "turn":
+        env = [stock if c is None else c for c in cols]
+    else:
+        env = cols
+    return Profile(mode, [zl + i * dz for i in range(n)], env, stock)
+
+
+def _nice_step(span: float, target: int) -> float:
+    """Tick spacing: a 1/2/5 x 10^k value giving about `target` ticks."""
+    raw = span / max(target, 1)
+    mag = 10.0 ** math.floor(math.log10(raw))
+    for m in (1.0, 2.0, 5.0):
+        if m * mag >= raw - 1e-12:
+            return m * mag
+    return 10.0 * mag
+
+
 RAPID_PEN = (QColor(110, 150, 255), 1, Qt.PenStyle.DashLine)
 FEED_PEN = (QColor(120, 220, 120), 2, Qt.PenStyle.SolidLine)
 TOOL_COLOR = QColor(255, 70, 70)
 SIM_COLOR = QColor(255, 200, 60)
+PART_FILL = QColor(84, 90, 86)       # finished part body
+STOCK_FILL = QColor(60, 64, 61)      # material the cuts remove
+PROFILE_COLOR = QColor(168, 178, 170)
+GRID_COLOR = QColor(58, 58, 58)
+FRAME_COLOR = QColor(72, 72, 72)
+TICK_COLOR = QColor(150, 150, 150)
 SIM_DURATION_MS = 10000       # short programs: whole run in this time
 SIM_FEED_SEG_MS = 1000        # many-pass programs: per cut segment
 SIM_TICK_MS = 30
@@ -117,10 +192,13 @@ class PathView(QWidget):
     sim_moved = Signal(float, float)    # z, x in program coordinates
     sim_stopped = Signal()
 
-    def __init__(self, lines: list[str] | None = None, parent=None):
+    def __init__(self, lines: list[str] | None = None,
+                 silhouette: str = "turn", parent=None):
         super().__init__(parent)
         self.setMinimumSize(260, 120)
+        self.silhouette = silhouette
         self.segments: list[Segment] = []
+        self.profile: Profile | None = None
         self.tool: tuple[float, float] | None = None    # (z, x) from status
         self.sim_point: tuple[float, float] | None = None
         self.sim_paused = False
@@ -133,6 +211,7 @@ class PathView(QWidget):
 
     def set_lines(self, lines: list[str]) -> None:
         self.segments = parse_segments(lines)
+        self.profile = feed_profile(self.segments, self.silhouette)
         self.stop_simulation()
         self.update()
 
@@ -221,17 +300,17 @@ class PathView(QWidget):
         z_span = max(zmax - zmin, 1e-9)
         x_span = max(xmax - xmin, 1e-9)
 
-        margin = 26
-        avail_w = max(rect.width() - 2 * margin, 1)
-        avail_h = max(rect.height() - 2 * margin, 1)
+        ml, mr, mt, mb = 48, 14, 16, 30      # left/bottom hold tick labels
+        avail_w = max(rect.width() - ml - mr, 1)
+        avail_h = max(rect.height() - mt - mb, 1)
         # true aspect when it stays readable, otherwise stretch to fit
         s_uni = min(avail_w / z_span, avail_h / x_span)
         if s_uni * z_span >= 0.25 * avail_w and s_uni * x_span >= 0.25 * avail_h:
             sz = sx = s_uni
         else:
             sz, sx = avail_w / z_span, avail_h / x_span
-        off_z = margin + (avail_w - sz * z_span) / 2.0
-        off_x = margin + (avail_h - sx * x_span) / 2.0
+        off_z = ml + (avail_w - sz * z_span) / 2.0
+        off_x = mt + (avail_h - sx * x_span) / 2.0
 
         def px(z: float) -> float:
             return off_z + (z - zmin) * sz
@@ -239,18 +318,55 @@ class PathView(QWidget):
         def py(x: float) -> float:
             return off_x + (x - xmin) * sx     # +X points down (tool in front)
 
+        left, right = ml, rect.width() - mr
+        top, bottom = mt, rect.height() - mb
+
+        # grid + tick labels over the whole plot area, not just the data span
+        tick_font = p.font()
+        tick_font.setPixelSize(11)
+        p.setFont(tick_font)
+        align = Qt.AlignmentFlag
+        z_lo, z_hi = zmin - (off_z - left) / sz, zmin + (right - off_z) / sz
+        step = _nice_step(z_hi - z_lo, 6)
+        v = math.ceil(z_lo / step - 1e-9) * step
+        while v <= z_hi + 1e-9:
+            gx = px(v)
+            p.setPen(QPen(GRID_COLOR, 1))
+            p.drawLine(int(gx), top, int(gx), bottom)
+            p.setPen(TICK_COLOR)
+            p.drawText(QRectF(gx - 40, bottom + 3, 80, mb - 4),
+                       align.AlignHCenter | align.AlignTop,
+                       f"{round(v, 9) or 0.0:g}")     # or: no "-0" labels
+            v += step
+        x_lo, x_hi = xmin - (off_x - top) / sx, xmin + (bottom - off_x) / sx
+        step = _nice_step(x_hi - x_lo, 4)
+        v = math.ceil(x_lo / step - 1e-9) * step
+        while v <= x_hi + 1e-9:
+            gy = py(v)
+            p.setPen(QPen(GRID_COLOR, 1))
+            p.drawLine(left, int(gy), right, int(gy))
+            p.setPen(TICK_COLOR)
+            p.drawText(QRectF(0, gy - 8, ml - 6, 16),
+                       align.AlignRight | align.AlignVCenter,
+                       f"{round(v, 9) or 0.0:g}")
+            v += step
+
+        self._draw_silhouette(p, px, py, bottom)
+
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(FRAME_COLOR, 1))
+        p.drawRect(QRectF(left, top, right - left, bottom - top))
+
         # spindle centerline (X0)
         if xmin <= 0.0 <= xmax:
             p.setPen(QPen(QColor(120, 120, 120), 1,
                           Qt.PenStyle.DashDotLine))
-            p.drawLine(int(margin / 2), int(py(0.0)),
-                       int(rect.width() - margin / 2), int(py(0.0)))
+            p.drawLine(left, int(py(0.0)), right, int(py(0.0)))
 
         # part face (Z0)
         if zmin <= 0.0 <= zmax:
             p.setPen(QPen(QColor(90, 90, 90), 1, Qt.PenStyle.DashLine))
-            p.drawLine(int(px(0.0)), int(margin / 2),
-                       int(px(0.0)), int(rect.height() - margin / 2))
+            p.drawLine(int(px(0.0)), top, int(px(0.0)), bottom)
 
         for seg in self.segments:
             color, width, style = RAPID_PEN if seg.rapid else FEED_PEN
@@ -278,9 +394,43 @@ class PathView(QWidget):
             p.drawEllipse(int(px(self.sim_point[0])) - 4,
                           int(py(self.sim_point[1])) - 4, 8, 8)
 
-        # axis hints, tucked under the centerline where no cutting happens
-        hint_y = int(py(0.0) if xmin <= 0.0 <= xmax else margin) + 16
+        # axis hints in the top corners, clear of the toolpath and markers
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QColor(140, 140, 140))
-        p.drawText(rect.width() - 60, hint_y, "+Z →")
-        p.drawText(10, hint_y, "X↓ (radius)")
+        p.drawText(left + 6, top + 16, "X↓ (radius)")
+        p.drawText(right - 46, top + 16, "+Z →")
+
+    def _draw_silhouette(self, p: QPainter, px, py, bottom: int) -> None:
+        prof = self.profile
+        if prof is None:
+            return
+        p.setPen(Qt.PenStyle.NoPen)
+        if prof.mode == "bore":
+            # bore wall: material from the cut surface down to the plot edge
+            run: list[QPointF] = []
+            for z, r in zip(prof.zs + [0.0], prof.env + [None]):
+                if r is not None:
+                    run.append(QPointF(px(z), py(r)))
+                elif run:
+                    poly = QPolygonF(run)
+                    poly.append(QPointF(run[-1].x(), bottom))
+                    poly.append(QPointF(run[0].x(), bottom))
+                    p.setBrush(PART_FILL)
+                    p.drawPolygon(poly)
+                    p.setPen(QPen(PROFILE_COLOR, 2))
+                    p.drawPolyline(QPolygonF(run))
+                    p.setPen(Qt.PenStyle.NoPen)
+                    run = []
+            return
+        # stock first; the removed skin stays visible above the part body
+        z0, z1 = prof.zs[0], prof.zs[-1]
+        p.setBrush(STOCK_FILL)
+        p.drawRect(QRectF(QPointF(px(z0), py(0.0)),
+                          QPointF(px(z1), py(prof.stock))))
+        pts = [QPointF(px(z), py(r)) for z, r in zip(prof.zs, prof.env)]
+        p.setBrush(PART_FILL)
+        p.drawPolygon(QPolygonF([QPointF(px(z0), py(0.0))] + pts
+                                + [QPointF(px(z1), py(0.0))]))
+        p.setPen(QPen(PROFILE_COLOR, 2))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(QPolygonF(pts))
