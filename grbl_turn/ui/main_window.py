@@ -58,6 +58,9 @@ class MainWindow(QMainWindow):
 
         home = QWidget()
         grid = QGridLayout(home)
+        # match the 6px side margins the status strip and pages use so the
+        # icon grid lines up with the DRO panel and device button
+        grid.setContentsMargins(6, 4, 6, 4)
         grid.setSpacing(6)
         for i, op in enumerate(REGISTRY):
             btn = OpButton()
