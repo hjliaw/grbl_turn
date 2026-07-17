@@ -97,7 +97,7 @@ class RunPage(QWidget):
         # segments include the passes G76 will cut; word-scanning misses them
         ext = segment_extents(self.path_view.segments) or extents(lines)
         dec = units.display_decimals
-        parts = [f"{axis} {lo:.{dec}f} … {hi:.{dec}f}"
+        parts = [f"{axis} {lo:+.{dec}f} … {hi:+.{dec}f}"
                  for axis, (lo, hi) in ext.items()]
         extent_label = QLabel("Travel extents:   " + "      ".join(parts))
         extent_label.setObjectName("dro")
