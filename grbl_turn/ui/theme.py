@@ -44,6 +44,7 @@ QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled {
 }
 QComboBox {
     padding-right: 24px;
+    combobox-popup: 0;   /* styled list popup, not the native macOS menu */
 }
 QComboBox::drop-down {
     width: 18px;
@@ -51,9 +52,14 @@ QComboBox::drop-down {
 QComboBox QAbstractItemView {
     background-color: rgb(66, 66, 66);
     border: 1px solid rgb(92, 92, 92);
+    font-size: 18px;
 }
 QComboBox QAbstractItemView::item {
-    min-height: 40px;
+    min-height: 48px;
+    padding: 0 10px;
+}
+QComboBox QAbstractItemView::item:selected {
+    background-color: rgb(55, 90, 55);
 }
 QToolTip {
     background-color: rgb(66, 66, 66);
@@ -105,7 +111,6 @@ QGroupBox::title {
     color: rgb(180, 200, 180);
 }
 QLabel#dro {
-    font-family: "Menlo", "Monaco", "DejaVu Sans Mono", monospace;
     font-size: 22px;
     color: rgb(120, 220, 120);
 }

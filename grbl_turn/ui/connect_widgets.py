@@ -3,13 +3,14 @@ matching parameter widgets."""
 
 from pathlib import Path
 
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLineEdit, QPushButton,
+from PySide6.QtWidgets import (QHBoxLayout, QLineEdit, QPushButton,
                                QSpinBox, QStackedWidget, QWidget)
 from serial.tools import list_ports
 
 from grbl_turn.comms.simulator import SimTransport
 from grbl_turn.comms.transport import SerialTransport, TelnetTransport, Transport
 from grbl_turn.config import settings
+from grbl_turn.ui.widgets import TouchCombo
 
 BAUD_RATES = ["115200", "230400", "57600", "9600"]
 
@@ -19,20 +20,20 @@ class ConnectBar(QWidget):
         super().__init__(parent)
         s = settings()
 
-        self.kind = QComboBox()
+        self.kind = TouchCombo()
         self.kind.addItems(["Serial", "WiFi", "Simulator"])
 
         # serial page
         serial_page = QWidget()
         row = QHBoxLayout(serial_page)
         row.setContentsMargins(0, 0, 0, 0)
-        self.port = QComboBox()
+        self.port = TouchCombo()
         self.refresh_ports()
         refresh = QPushButton("↻")
         refresh.setFixedWidth(32)
         refresh.setToolTip("Rescan serial ports")
         refresh.clicked.connect(self.refresh_ports)
-        self.baud = QComboBox()
+        self.baud = TouchCombo()
         self.baud.addItems(BAUD_RATES)
         row.addWidget(self.port, 1)
         row.addWidget(refresh)

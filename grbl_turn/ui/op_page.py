@@ -15,6 +15,7 @@ from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
 from grbl_turn.ui.numpad import TouchNumberEdit
+from grbl_turn.ui.widgets import TouchCombo
 from grbl_turn.units import MM_PER_INCH, Units
 
 LABEL_COL_W = 240   # uniform columns across the parameter groups
@@ -186,7 +187,7 @@ class OpPage(QWidget):
         """Dropdown beside the input that fills in a named preset value;
         picking a name writes its exact value into the input, and editing
         the input to anything else flips the dropdown to 'Custom'."""
-        combo = QComboBox()
+        combo = TouchCombo()
         combo.addItems(f.presets.keys())
         combo.addItem("Custom")
         # the style sizes the box to its widest item, arrow included —
@@ -293,7 +294,7 @@ class OpPage(QWidget):
             if f.placement == "left":
                 w = SegmentedChoice(f.choices)
             else:
-                w = QComboBox()
+                w = TouchCombo()
                 w.addItems(f.choices)
                 w.setSizePolicy(QSizePolicy.Policy.Expanding,
                                 QSizePolicy.Policy.Fixed)

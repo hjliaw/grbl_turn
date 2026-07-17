@@ -66,7 +66,8 @@ class RunPage(QWidget):
         top.addWidget(QLabel(f"<b>{op.title}</b>"))
         top.addStretch(1)
         self.sim_btn = icon_btn(
-            "play.svg", "Simulate: animate the tool tip along the toolpath")
+            "fast-forward.svg",
+            "Simulate: animate the tool tip along the toolpath")
         self.sim_btn.clicked.connect(self.on_simulate)
         top.addWidget(self.sim_btn)
         # shown in place of the view toggle while a simulation runs

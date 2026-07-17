@@ -5,8 +5,8 @@ work on a 7" screen)."""
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout,
-                               QLabel, QMainWindow, QMessageBox, QPushButton,
+from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QMainWindow, QMessageBox, QPushButton,
                                QSizePolicy, QStackedWidget, QToolButton,
                                QVBoxLayout, QWidget)
 
@@ -16,6 +16,7 @@ from grbl_turn.config import convert_saved_params, settings
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import REGISTRY
 from grbl_turn.ui.connect_widgets import ConnectBar
+from grbl_turn.ui.widgets import TouchCombo
 from grbl_turn.ui.op_page import OpPage
 from grbl_turn.ui.run_page import RunPage
 from grbl_turn.units import Units, convert
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
         self.rpm_label = QLabel("S ?")
         self.rpm_label.setObjectName("dro")
 
-        self.units_combo = QComboBox()
+        self.units_combo = TouchCombo()
         self.units_combo.addItems([u.value for u in Units])
         self.units_combo.setCurrentText(self.units.value)
         self.units_combo.setToolTip(
@@ -250,7 +251,7 @@ class MainWindow(QMainWindow):
                     convert(pos[2], self.report_units, self.units),
                     convert(pos[0], self.report_units, self.units))
         if "rpm" in st:
-            self.rpm_label.setText(f"S {st['rpm']:.0f} RPM")
+            self.rpm_label.setText(f"S {st['rpm']:.0f} rpm")
 
     def _show_xz(self, x_dia: float, z: float) -> None:
         dec = self.units.display_decimals
