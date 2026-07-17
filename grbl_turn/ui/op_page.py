@@ -111,14 +111,10 @@ class OpPage(QWidget):
                 form_col.addWidget(box)
             widget = self._make_widget(f, saved.get(f.name))
             self.widgets[f.name] = widget
-            rows = []
-            if f.presets:
-                rows.append((self._row_label("Preset"),
-                             self._preset_row(f, widget)))
-            rows.append((self._row_label(f.label), self._with_unit(f, widget)))
-            for label, box in rows:
-                groups[f.group].addRow(label, box)
-            self._rows[f.name] = [w for pair in rows for w in pair]
+            label = self._row_label(f.label)
+            box = self._with_unit(f, widget)
+            groups[f.group].addRow(label, box)
+            self._rows[f.name] = [label, box]
 
         for f in op.fields:   # gray out fields governed by a checked bool
             if f.kind == "bool" and f.disables:
@@ -182,14 +178,17 @@ class OpPage(QWidget):
                            | Qt.AlignmentFlag.AlignVCenter)
         return label
 
-    def _preset_row(self, f: Field, widget) -> QWidget:
-        """Dropdown that fills the field with a named preset value; any
-        other value in the field shows as 'custom'."""
+    def _preset_combo(self, f: Field, widget) -> QComboBox:
+        """Dropdown beside the input that fills in a named preset value;
+        picking a name writes its exact value into the input, and editing
+        the input to anything else flips the dropdown to 'Custom'."""
         combo = QComboBox()
-        combo.addItem("custom")
         combo.addItems(f.presets.keys())
-        combo.setSizePolicy(QSizePolicy.Policy.Expanding,
-                            QSizePolicy.Policy.Fixed)
+        combo.addItem("Custom")
+        # the style sizes the box to its widest item, arrow included —
+        # hand-computed widths clip on the macOS combo bezel
+        combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToContents)
 
         def apply(name: str) -> None:
             if name in f.presets:
@@ -197,28 +196,17 @@ class OpPage(QWidget):
 
         def follow(text: str) -> None:
             name = combo.currentText()
-            if name != "custom" and text != self._fmt_value(f.presets[name]):
-                combo.setCurrentText("custom")
+            if name in f.presets and text != self._fmt_value(f.presets[name]):
+                combo.setCurrentText("Custom")
 
         combo.currentTextChanged.connect(apply)
         widget.textChanged.connect(follow)
+        combo.setCurrentText("Custom")
         for name, value in f.presets.items():   # recognize a saved preset
             if widget.text() == self._fmt_value(value):
                 combo.setCurrentText(name)
                 break
-
-        box = QWidget()
-        row = QHBoxLayout(box)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)
-        pad = QWidget()
-        pad.setFixedWidth(AUTO_BTN_W)
-        row.addWidget(pad)
-        row.addWidget(combo, 1)
-        unit = QLabel("")
-        unit.setMinimumWidth(UNIT_COL_W)
-        row.addWidget(unit)
-        return box
+        return combo
 
     def _unit_suffix(self, f: Field) -> str:
         if f.unit:
@@ -235,14 +223,16 @@ class OpPage(QWidget):
         return ""
 
     def _with_unit(self, f: Field, widget) -> QWidget:
-        """The input widget flanked by an auto button (or placeholder) on
-        the left and its unit text (or placeholder) on the right, so every
-        input spans the same column."""
+        """The input widget flanked by a preset dropdown / auto button
+        (or placeholder) on the left and its unit text (or placeholder)
+        on the right, so every input spans the same column."""
         box = QWidget()
         row = QHBoxLayout(box)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)   # macOS varies spacing by widget type otherwise
-        if f.auto is not None:
+        if f.presets:
+            row.addWidget(self._preset_combo(f, widget))
+        elif f.auto is not None:
             btn = QPushButton("A")
             btn.setFixedWidth(AUTO_BTN_W)
             btn.setToolTip("Calculate from the other parameters")
