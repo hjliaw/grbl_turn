@@ -37,6 +37,11 @@ QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
 QLineEdit, QComboBox, QSpinBox {
     min-height: 28px;
 }
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled {
+    color: rgb(120, 120, 120);
+    background-color: rgb(56, 56, 56);
+    border-color: rgb(76, 76, 76);
+}
 QComboBox {
     padding-right: 24px;
 }

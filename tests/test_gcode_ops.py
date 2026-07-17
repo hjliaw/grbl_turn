@@ -5,6 +5,7 @@ import pytest
 from grbl_turn.gcode import extents
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY, REGISTRY
+from grbl_turn.ops.taper import MODE_TRIM
 from grbl_turn.units import Units
 
 MACHINE = MachineProfile()
@@ -31,6 +32,10 @@ def test_all_ops_generate_with_defaults(op, units):
     assert b[-1] == "M2"
     # no motion before the units/plane line, spindle never started by default
     assert not any(l.startswith("M3") for l in b)
+    # GRBL rejects nested parentheses inside comments
+    for l in lines:
+        if l.startswith("("):
+            assert "(" not in l[1:-1] and ")" not in l[1:-1], l
 
 
 def test_turning_passes_and_extents():
@@ -94,24 +99,36 @@ def test_taper_finish_pass_moves_both_axes():
     assert not any(l.startswith("(WARNING") for l in lines)
 
 
-def test_taper_trim_full_length_passes():
+def test_taper_trim_progressive_passes():
+    import math
     op = BY_KEY["ext_taper"]
-    p = defaults(op) | {"trim": True}
+    p = defaults(op) | {"mode": MODE_TRIM}
+    # defaults: existing 0.500 -> target 0.480 at face, 0.010 radial skin;
+    # doc 0.020 covers it in a single full-length pass
     lines = op.generate(p, MACHINE, Units.INCH)
     taper_moves = [l for l in lines
                    if l.startswith("G1") and "X" in l and "Z-" in l]
-    import math
-    from grbl_turn.ops.passes import turning_passes
-    expected = turning_passes(p["start_dia"] / 2, p["face_dia"] / 2, p["doc"])
-    assert len(taper_moves) == len(expected)   # every pass runs the cone
-    # no straight roughing plunges besides the Z0 approaches
+    assert len(taper_moves) == 1
     plunges = [l for l in lines
                if l.startswith("G1 Z-") and "X" not in l]
-    assert not plunges
-    # final pass lands on the target cone's end radius
-    end_r = p["face_dia"] / 2 + p["length"] * math.tan(
+    assert not plunges             # no straight roughing
+    end_r = p["target_dia"] / 2 + p["length"] * math.tan(
         math.radians(p["angle"]))
+    assert f"X{end_r:.4f}" in taper_moves[0]
+    # stock diameter is irrelevant in trim mode
+    assert op.generate(p | {"start_dia": 9.9}, MACHINE, Units.INCH) == lines
+
+    # a smaller doc steps down in parallel passes, ending on the target
+    lines = op.generate(p | {"doc": 0.004}, MACHINE, Units.INCH)
+    taper_moves = [l for l in lines
+                   if l.startswith("G1") and "X" in l and "Z-" in l]
+    assert len(taper_moves) == 3   # 0.010 skin / 0.004 doc
     assert f"X{end_r:.4f}" in taper_moves[-1]
+    assert f"X{end_r + 0.006:.4f}" in taper_moves[0]
+
+    # a target that leaves the existing surface uncut is an error
+    with pytest.raises(ValueError):
+        op.generate(p | {"target_dia": 0.6}, MACHINE, Units.INCH)
 
 
 def test_taper_overrun_warns_but_generates():

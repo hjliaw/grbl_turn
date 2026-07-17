@@ -44,6 +44,14 @@ class Field:
     # optional named preset values; the form adds a dropdown above the
     # field that fills the value in (editing the field reverts to custom)
     presets: dict[str, float] | None = None
+    # bool fields only: names of fields grayed out while this is checked
+    disables: list[str] = field(default_factory=list)
+    # (choice field name, value): show this field only while that choice
+    # field holds that value
+    visible_when: tuple[str, str] | None = None
+    # where the form places the field: "form" (default) or "left" — above
+    # the diagram; a "left" choice renders as a row of exclusive buttons
+    placement: str = "form"
 
 
 @dataclass

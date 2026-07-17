@@ -11,9 +11,14 @@ from datetime import date
 from grbl_turn.units import Units, fmt
 
 
+def _comment(text: str) -> str:
+    """GRBL rejects nested parentheses inside a comment."""
+    return "(" + text.replace("(", "[").replace(")", "]") + ")"
+
+
 def header(op_title: str, param_desc: list[str], units: Units) -> list[str]:
-    lines = [f"({op_title} - grbl_turn {date.today().isoformat()})"]
-    lines += [f"({d})" for d in param_desc]
+    lines = [_comment(f"{op_title} - grbl_turn {date.today().isoformat()}")]
+    lines += [_comment(d) for d in param_desc]
     lines.append(f"{units.gcode} G18 G90 G94")
     return lines
 

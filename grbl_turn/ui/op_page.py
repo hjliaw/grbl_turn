@@ -5,10 +5,10 @@ small screens) instead of a popup dialog."""
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QDoubleValidator, QIcon, QIntValidator
 from PySide6.QtSvgWidgets import QSvgWidget
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox,
-                               QHBoxLayout, QLabel, QMessageBox, QPushButton,
-                               QScrollArea, QScroller, QSizePolicy,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox,
+                               QFormLayout, QGroupBox, QHBoxLayout, QLabel,
+                               QMessageBox, QPushButton, QScrollArea,
+                               QScroller, QSizePolicy, QVBoxLayout, QWidget)
 
 from grbl_turn import resource
 from grbl_turn.config import load_op_params, save_op_params
@@ -22,6 +22,38 @@ UNIT_COL_W = 56
 AUTO_BTN_W = 36
 
 
+class SegmentedChoice(QWidget):
+    """A choice as a row of exclusive checkable buttons — bigger touch
+    targets than a combo box. Mirrors the QComboBox API the form code
+    uses (currentText/setCurrentText/currentTextChanged)."""
+    currentTextChanged = Signal(str)
+
+    def __init__(self, choices: list[str], parent=None):
+        super().__init__(parent)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
+        for text in choices:
+            btn = QPushButton(text)
+            btn.setCheckable(True)
+            self._group.addButton(btn)
+            row.addWidget(btn, 1)
+        self._group.buttonToggled.connect(
+            lambda btn, checked:
+            checked and self.currentTextChanged.emit(btn.text()))
+
+    def currentText(self) -> str:
+        btn = self._group.checkedButton()
+        return btn.text() if btn else ""
+
+    def setCurrentText(self, text: str) -> None:
+        for btn in self._group.buttons():
+            if btn.text() == text:
+                btn.setChecked(True)
+
+
 class OpPage(QWidget):
     back_requested = Signal()
     run_requested = Signal(list)     # generated G-code lines
@@ -33,6 +65,7 @@ class OpPage(QWidget):
         self.machine = machine
         self.units = units
         self.widgets: dict[str, object] = {}
+        self._rows: dict[str, list[QWidget]] = {}   # form-row widgets per field
         self._auto_prev: dict[str, str] = {}   # values before "auto" clicks
 
         back = QPushButton(QIcon(resource("arrow-left.svg")), "")
@@ -64,6 +97,11 @@ class OpPage(QWidget):
         form_col = QVBoxLayout(form_host)
         saved = load_op_params(op.key)
         for f in op.fields:
+            if f.placement == "left":   # mode selector above the diagram
+                widget = self._make_widget(f, saved.get(f.name))
+                self.widgets[f.name] = widget
+                left.insertWidget(left.count() - 1, widget)
+                continue
             if f.group not in groups:
                 box = QGroupBox(f.group or "Parameters")
                 form = QFormLayout(box)
@@ -73,11 +111,37 @@ class OpPage(QWidget):
                 form_col.addWidget(box)
             widget = self._make_widget(f, saved.get(f.name))
             self.widgets[f.name] = widget
+            rows = []
             if f.presets:
-                groups[f.group].addRow(self._row_label("Preset"),
-                                       self._preset_row(f, widget))
-            groups[f.group].addRow(self._row_label(f.label),
-                                   self._with_unit(f, widget))
+                rows.append((self._row_label("Preset"),
+                             self._preset_row(f, widget)))
+            rows.append((self._row_label(f.label), self._with_unit(f, widget)))
+            for label, box in rows:
+                groups[f.group].addRow(label, box)
+            self._rows[f.name] = [w for pair in rows for w in pair]
+
+        for f in op.fields:   # gray out fields governed by a checked bool
+            if f.kind == "bool" and f.disables:
+                checkbox = self.widgets[f.name]
+
+                def apply(checked, names=tuple(f.disables)):
+                    for name in names:
+                        self.widgets[name].setEnabled(not checked)
+
+                checkbox.toggled.connect(apply)
+                apply(checkbox.isChecked())
+
+        for f in op.fields:   # rows shown only in one mode of a choice
+            if f.visible_when:
+                ctrl_name, value = f.visible_when
+                ctrl = self.widgets[ctrl_name]
+
+                def apply(current, name=f.name, value=value):
+                    for w in self._rows[name]:
+                        w.setVisible(current == value)
+
+                ctrl.currentTextChanged.connect(apply)
+                apply(ctrl.currentText())
 
         form_col.addStretch(1)
 
@@ -92,14 +156,15 @@ class OpPage(QWidget):
         QScroller.grabGesture(scroll.viewport(),
                               QScroller.ScrollerGestureType.LeftMouseButtonGesture)
 
-        # Generate lives outside the scroll area: always visible
+        # Generate lives outside the scroll area: always visible,
+        # at the bottom of the diagram column so the form gets full height
         generate = QPushButton("G-code")
         generate.setObjectName("run")
         generate.clicked.connect(self.on_generate)
+        left.addWidget(generate)
 
         right = QVBoxLayout()
         right.addWidget(scroll, 1)
-        right.addWidget(generate)
 
         body = QHBoxLayout()
         body.addLayout(left, 1)
@@ -231,11 +296,17 @@ class OpPage(QWidget):
             w.setChecked(saved in ("true", "True", True)
                          if saved is not None else bool(f.default))
         elif f.kind == "choice":
-            w = QComboBox()
-            w.addItems(f.choices)
-            w.setCurrentText(str(saved) if saved is not None else str(f.default))
-            w.setSizePolicy(QSizePolicy.Policy.Expanding,
-                            QSizePolicy.Policy.Fixed)
+            if f.placement == "left":
+                w = SegmentedChoice(f.choices)
+            else:
+                w = QComboBox()
+                w.addItems(f.choices)
+                w.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                QSizePolicy.Policy.Fixed)
+            if saved is not None and str(saved) in f.choices:
+                w.setCurrentText(str(saved))
+            else:
+                w.setCurrentText(str(f.default))
         elif f.kind in ("int", "rpm"):
             w = TouchNumberEdit(f.label, integer=True)
             w.setValidator(QIntValidator(int(f.minimum), int(f.maximum), w))
