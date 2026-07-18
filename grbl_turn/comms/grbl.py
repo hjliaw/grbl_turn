@@ -157,12 +157,15 @@ class GrblWorker(QObject):
                 self._handle_line(line)
 
     def _handle_line(self, line: str) -> None:
-        debug("<", line)
         if line.startswith("<"):
             st = parse_status(line)
+            if "WPos" in st and "WCO" in st:
+                debug(">", "? (status poll)")
+                debug("<", line)
             if st:
                 self.status.emit(st)
             return
+        debug("<", line)
         self.comm_log.emit("<", line)
         m = _SETTING.match(line)
         if m:
@@ -218,7 +221,6 @@ class GrblWorker(QObject):
         if now - self._last_poll >= POLL_INTERVAL:
             self._last_poll = now
             self.transport.write(b"?")
-            debug(">", "? (status poll)")
 
     def _drop_transport(self, reason: str) -> None:
         debug("--", f"transport dropped: {reason}")

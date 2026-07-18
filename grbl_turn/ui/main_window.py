@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
         self.x_label.setObjectName("dro")
         self.z_label = QLabel("Z ?")
         self.z_label.setObjectName("dro")
-        self.rpm_label = QLabel("S ?")
+        self.rpm_label = QLabel("?")
         self.rpm_label.setObjectName("dro")
 
         self.units_combo = TouchCombo()
@@ -145,7 +145,7 @@ class MainWindow(QMainWindow):
     def _build_connect_page(self) -> QWidget:
         page = QWidget()
 
-        back = QPushButton(QIcon(resource("arrow-left.svg")), "")
+        back = QPushButton(QIcon(resource("undo.svg")), "")
         back.setObjectName("back")
         back.setIconSize(QSize(28, 28))
         back.setToolTip("Back")
@@ -254,7 +254,7 @@ class MainWindow(QMainWindow):
                     convert(pos[2], self.report_units, self.units),
                     convert(pos[0], self.report_units, self.units))
         if "rpm" in st:
-            self.rpm_label.setText(f"S {st['rpm']:.0f} rpm")
+            self.rpm_label.setText(f"{st['rpm']:.0f} rpm")
 
     def _show_xz(self, x_dia: float, z: float) -> None:
         dec = self.units.display_decimals

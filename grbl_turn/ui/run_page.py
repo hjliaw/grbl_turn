@@ -27,7 +27,7 @@ class RunPage(QWidget):
         self.lines = lines
         self.op_title = op.title
 
-        self.back_btn = QPushButton(QIcon(resource("arrow-left.svg")), "")
+        self.back_btn = QPushButton(QIcon(resource("undo.svg")), "")
         self.back_btn.setObjectName("back")
         self.back_btn.setIconSize(QSize(28, 28))
         self.back_btn.setToolTip("Back")

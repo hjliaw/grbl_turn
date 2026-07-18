@@ -3,7 +3,8 @@ right. Shown inside the main-window stack (single-window UI, sized for
 small screens) instead of a popup dialog."""
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QDoubleValidator, QIcon, QIntValidator
+from PySide6.QtGui import (QColor, QDoubleValidator, QIcon, QIntValidator,
+                           QPainter, QPixmap)
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox,
                                QFormLayout, QGroupBox, QHBoxLayout, QLabel,
@@ -67,9 +68,10 @@ class OpPage(QWidget):
         self.units = units
         self.widgets: dict[str, object] = {}
         self._rows: dict[str, list[QWidget]] = {}   # form-row widgets per field
-        self._auto_prev: dict[str, str] = {}   # values before "auto" clicks
+        self._auto_btns: dict[str, QPushButton] = {}   # field name -> gear button
+        self._auto_active: dict[str, bool] = {}   # field name -> tap does something
 
-        back = QPushButton(QIcon(resource("arrow-left.svg")), "")
+        back = QPushButton(QIcon(resource("undo.svg")), "")
         back.setObjectName("back")
         back.setIconSize(QSize(28, 28))
         back.setToolTip("Back")
@@ -143,6 +145,19 @@ class OpPage(QWidget):
 
                 ctrl.currentTextChanged.connect(apply)
                 apply(ctrl.currentText())
+
+        # a pitch change moves every pitch-derived auto value; fields still
+        # tracking their old auto value follow it, custom ones are left
+        # alone (but their gear still re-checks against the new value)
+        pitch_field = next((f for f in op.fields if f.kind == "pitch"), None)
+        if pitch_field is not None:
+            self._pitch_name = pitch_field.name
+            self._last_pitch_text = self.widgets[pitch_field.name].text()
+            self.widgets[pitch_field.name].textChanged.connect(
+                self._on_pitch_changed)
+        for f in op.fields:   # set the initial gear state for auto fields
+            if f.auto is not None:
+                self._refresh_auto_btn(f)
 
         form_col.addStretch(1)
 
@@ -238,12 +253,14 @@ class OpPage(QWidget):
         if f.presets:
             row.addWidget(self._preset_combo(f, widget))
         elif f.auto is not None:
-            btn = QPushButton("A")
+            btn = QPushButton(self._gear_icon(gray=True), "")
             btn.setFixedWidth(AUTO_BTN_W)
-            btn.setToolTip("Calculate from the other parameters")
+            btn.setIconSize(QSize(18, 18))
             btn.clicked.connect(
-                lambda checked=False, f=f, w=widget, b=btn:
-                self.on_auto(f, w, b))
+                lambda checked=False, f=f, w=widget: self.on_auto(f, w))
+            self._auto_btns[f.name] = btn
+            widget.textChanged.connect(
+                lambda _text=None, f=f: self._refresh_auto_btn(f))
             row.addWidget(btn)
         else:
             pad = QWidget()   # placeholder: keeps the input column aligned
@@ -255,21 +272,87 @@ class OpPage(QWidget):
         row.addWidget(unit)
         return box
 
-    def on_auto(self, f: Field, widget, btn: QPushButton) -> None:
-        if btn.text() == "A":
+    def _gear_icon(self, gray: bool) -> QIcon:
+        """A single Normal-mode pixmap, not Qt's Normal/Disabled icon split:
+        some native styles reprocess (or ignore) a custom Disabled pixmap,
+        which on this thin-stroke icon showed up as visibly shrunk rather
+        than just dimmer. Painting our own gray version and never touching
+        setEnabled() keeps the size identical across styles/platforms.
+
+        On a HiDPI (Retina) screen `normal` is an oversampled pixel buffer
+        tagged with devicePixelRatio 2.0 for an 18x18 logical icon — a
+        plain QPixmap(size) doesn't inherit that ratio, so without setting
+        it explicitly the tinted copy reads as a *36x36* logical icon and
+        gets shrunk to fit the button's 18x18 icon box."""
+        normal = QIcon(resource("gear.svg")).pixmap(18, 18)
+        if not gray:
+            return QIcon(normal)
+        tinted = QPixmap(normal.size())
+        tinted.setDevicePixelRatio(normal.devicePixelRatio())
+        tinted.fill(Qt.GlobalColor.transparent)
+        p = QPainter(tinted)
+        p.drawPixmap(0, 0, normal)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        p.fillRect(tinted.rect(), QColor(200, 200, 200))
+        p.end()
+        return QIcon(tinted)
+
+    def on_auto(self, f: Field, widget) -> None:
+        if not self._auto_active.get(f.name, True):
+            return   # already matches the calculated value; nothing to sync
+        try:
+            value = f.auto(self.collect_params(), self.units)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Auto value", str(exc))
+            return
+        widget.setText(self._fmt_value(value))   # textChanged refreshes the gear
+
+    def _refresh_auto_btn(self, f: Field) -> None:
+        """Gear shows white when the field's value doesn't match what
+        f.auto() would currently produce — i.e. there's something to
+        sync — and grayed out (a no-op tap) when it already matches."""
+        btn = self._auto_btns.get(f.name)
+        if btn is None:
+            return
+        try:
+            current = float(self.widgets[f.name].text())
+            auto_value = f.auto(self.collect_params(), self.units)
+        except (ValueError, ZeroDivisionError):
+            return   # mid-edit / other fields blank: leave the gear as-is
+        active = self._fmt_value(current) != self._fmt_value(auto_value)
+        self._auto_active[f.name] = active
+        btn.setIcon(self._gear_icon(gray=not active))
+        btn.setToolTip("Differs from the calculated value; tap to sync"
+                       if active else "Matches the calculated value")
+
+    def _on_pitch_changed(self, new_text: str) -> None:
+        old_text, self._last_pitch_text = self._last_pitch_text, new_text
+        try:
+            new_params = self.collect_params()
+        except ValueError:
+            return
+        old_params = dict(new_params)
+        try:
+            old_params[self._pitch_name] = float(old_text)
+        except ValueError:
+            pass
+        for f in self.op.fields:
+            if f.auto is None:
+                continue
+            widget = self.widgets[f.name]
             try:
-                value = f.auto(self.collect_params(), self.units)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Auto value", str(exc))
-                return
-            self._auto_prev[f.name] = widget.text()
-            widget.setText(self._fmt_value(value))
-            btn.setText("R")
-            btn.setToolTip("Restore the previous value")
-        else:
-            widget.setText(self._auto_prev.get(f.name, "0.0"))
-            btn.setText("A")
-            btn.setToolTip("Calculate from the other parameters")
+                was_linked = (self._fmt_value(float(widget.text())) ==
+                              self._fmt_value(f.auto(old_params, self.units)))
+            except (ValueError, ZeroDivisionError):
+                was_linked = False
+            if was_linked:
+                try:
+                    widget.setText(
+                        self._fmt_value(f.auto(new_params, self.units)))
+                except (ValueError, ZeroDivisionError):
+                    pass
+            else:
+                self._refresh_auto_btn(f)
 
     def _fmt_value(self, value: float) -> str:
         """Short numbers stay as-is; long tails are rounded to the G-code

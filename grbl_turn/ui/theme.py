@@ -164,9 +164,6 @@ QPushButton[seg="last"] {
     border-bottom-left-radius: 0;
     border-left: none;
 }
-QPushButton#back {
-    background-color: rgb(160, 175, 160);
-}
 QPushButton#numpad, QPushButton#numpadok {
     font-size: 22px;
     min-height: 40px;
