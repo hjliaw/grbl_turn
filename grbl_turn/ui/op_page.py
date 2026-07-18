@@ -69,7 +69,8 @@ class OpPage(QWidget):
         self.widgets: dict[str, object] = {}
         self._rows: dict[str, list[QWidget]] = {}   # form-row widgets per field
         self._auto_btns: dict[str, QPushButton] = {}   # field name -> gear button
-        self._auto_active: dict[str, bool] = {}   # field name -> tap does something
+        self._auto_active: dict[str, bool] = {}   # field name -> value != auto
+        self._auto_prev: dict[str, str] = {}   # custom value to revert to
 
         back = QPushButton(QIcon(resource("undo.svg")), "")
         back.setObjectName("back")
@@ -293,24 +294,31 @@ class OpPage(QWidget):
         p = QPainter(tinted)
         p.drawPixmap(0, 0, normal)
         p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
-        p.fillRect(tinted.rect(), QColor(200, 200, 200))
+        p.fillRect(tinted.rect(), QColor(120, 120, 120))
         p.end()
         return QIcon(tinted)
 
     def on_auto(self, f: Field, widget) -> None:
-        if not self._auto_active.get(f.name, True):
-            return   # already matches the calculated value; nothing to sync
-        try:
-            value = f.auto(self.collect_params(), self.units)
-        except ValueError as exc:
-            QMessageBox.warning(self, "Auto value", str(exc))
-            return
-        widget.setText(self._fmt_value(value))   # textChanged refreshes the gear
+        if self._auto_active.get(f.name, True):
+            # white gear: replace the custom value with the calculated one,
+            # remembering it so the gray gear can revert
+            try:
+                value = f.auto(self.collect_params(), self.units)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Auto value", str(exc))
+                return
+            self._auto_prev[f.name] = widget.text()
+            widget.setText(self._fmt_value(value))   # textChanged refreshes gear
+        else:
+            # gray gear: restore the last custom value
+            prev = self._auto_prev.get(f.name)
+            if prev is not None:
+                widget.setText(prev)
 
     def _refresh_auto_btn(self, f: Field) -> None:
-        """Gear shows white when the field's value doesn't match what
-        f.auto() would currently produce — i.e. there's something to
-        sync — and grayed out (a no-op tap) when it already matches."""
+        """Gear shows white when the field's value differs from what
+        f.auto() would produce (tap to auto-calculate) and grays out when
+        it already matches (tap to revert to the last custom value)."""
         btn = self._auto_btns.get(f.name)
         if btn is None:
             return
@@ -322,8 +330,7 @@ class OpPage(QWidget):
         active = self._fmt_value(current) != self._fmt_value(auto_value)
         self._auto_active[f.name] = active
         btn.setIcon(self._gear_icon(gray=not active))
-        btn.setToolTip("Differs from the calculated value; tap to sync"
-                       if active else "Matches the calculated value")
+        btn.setToolTip("Auto calculate" if active else "Custom")
 
     def _on_pitch_changed(self, new_text: str) -> None:
         old_text, self._last_pitch_text = self._last_pitch_text, new_text
