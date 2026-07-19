@@ -15,6 +15,7 @@ setlocal
 set "REPO=%~dp0"
 set "VENVDIR=%LOCALAPPDATA%\grbl_turn\venv"
 set "PYW=%VENVDIR%\Scripts\pythonw.exe"
+set "ICO=%VENVDIR%\Lib\site-packages\grbl_turn\resources\icons\grbl_turn.ico"
 
 where py >nul 2>nul
 if errorlevel 1 (
@@ -43,6 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s.TargetPath = '%PYW%';" ^
   "$s.Arguments = '-m grbl_turn';" ^
   "$s.WorkingDirectory = [Environment]::GetFolderPath('UserProfile');" ^
+  "$s.IconLocation = '%ICO%';" ^
   "$s.Description = 'Conversational lathe GUI';" ^
   "$s.Save()"
 if errorlevel 1 goto :fail
@@ -55,6 +57,7 @@ if /i "%~1"=="/autostart" (
       "$s.TargetPath = '%PYW%';" ^
       "$s.Arguments = '-m grbl_turn';" ^
       "$s.WorkingDirectory = [Environment]::GetFolderPath('UserProfile');" ^
+      "$s.IconLocation = '%ICO%';" ^
       "$s.Save()"
     if errorlevel 1 goto :fail
 )

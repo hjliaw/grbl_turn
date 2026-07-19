@@ -1,6 +1,22 @@
 grbl_turn — packaging / deployment notes
 =========================================
 
+App icons
+---------
+grbl_turn/resources/icons/ holds icons generated from
+resources/images/logo.svg by attic/make_icons.py (needs inkscape +
+Pillow; the .icns step needs macOS):
+- grbl_turn.ico        Windows: shortcut icon (set by install-win.bat),
+                       PyInstaller --icon, installer branding
+- grbl_turn.icns       macOS: for a future .app bundle (py2app/briefcase
+                       or PyInstaller --icon)
+- grbl_turn-{128,256,512}.png
+                       Linux .desktop Icon= (install-ubuntu.sh) and the
+                       Qt window/taskbar icon on every platform
+The app itself sets the window icon in app.py from grbl_turn-256.png.
+Edit logo.svg, rerun the script, commit the regenerated outputs.
+
+
 Windows executable (PyInstaller)
 --------------------------------
 Must build ON Windows — PyInstaller does not cross-compile.
@@ -8,7 +24,9 @@ Must build ON Windows — PyInstaller does not cross-compile.
     py -m venv venv
     venv\Scripts\pip install . pyinstaller
     venv\Scripts\pyinstaller --name grbl_turn --windowed ^
+        --icon grbl_turn\resources\icons\grbl_turn.ico ^
         --add-data "grbl_turn\resources\images;grbl_turn\resources\images" ^
+        --add-data "grbl_turn\resources\icons;grbl_turn\resources\icons" ^
         grbl_turn\__main__.py
 
 Result: dist\grbl_turn\grbl_turn.exe (ship the whole folder, or zip it).

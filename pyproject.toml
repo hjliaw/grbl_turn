@@ -22,4 +22,4 @@ build-backend = "setuptools.build_meta"
 include = ["grbl_turn*"]
 
 [tool.setuptools.package-data]
-"grbl_turn.resources" = ["images/*.svg"]
+"grbl_turn.resources" = ["images/*.svg", "icons/*"]

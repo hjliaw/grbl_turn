@@ -45,6 +45,7 @@ echo "==> Serial port access (dialout group)"
 sudo usermod -aG dialout "$USER"
 
 echo "==> Application-menu launcher"
+ICON="$("$PYTHON" -c 'from grbl_turn import ICONS; print(ICONS / "grbl_turn-256.png")')"
 mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/grbl_turn.desktop" <<EOF
 [Desktop Entry]
@@ -52,6 +53,7 @@ Type=Application
 Name=grbl_turn
 Comment=Conversational lathe GUI
 Exec=$PYTHON -m grbl_turn
+Icon=$ICON
 Categories=Utility;Engineering;
 Terminal=false
 EOF
