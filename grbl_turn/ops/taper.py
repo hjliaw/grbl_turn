@@ -15,10 +15,12 @@ from grbl_turn.units import Units, fmt
 MORSE_ANGLES = {"MT0": 1.4908, "MT1": 1.4287, "MT2": 1.4307, "MT3": 1.4377}
 
 MODE_CUT = "Cut from stock"
+MODE_CUT_INT = "Cut from bored"
 MODE_TRIM = "Trim existing taper"
 
 
 def _fields(internal: bool) -> list[Field]:
+    mode_cut = MODE_CUT_INT if internal else MODE_CUT
     target_tip = ("The finished diameter at the face; trim passes step "
                   "from the existing surface (Diameter at face) toward "
                   "it by the depth per pass")
@@ -27,7 +29,7 @@ def _fields(internal: bool) -> list[Field]:
             Field("start_dia", "Existing bore diameter", "dia", 0.375,
                   group="X (cross-slide)",
                   tooltip="Pilot bore the taper is cut into",
-                  visible_when=("mode", MODE_CUT)),
+                  visible_when=("mode", MODE_CUT_INT)),
             Field("target_dia", "Target diameter at face", "dia", 0.645,
                   group="X (cross-slide)", tooltip=target_tip,
                   visible_when=("mode", MODE_TRIM)),
@@ -55,8 +57,8 @@ def _fields(internal: bool) -> list[Field]:
               tooltip="Half angle, as set on a compound slide; the "
                       "diameter changes by 2 x tan(angle) per unit length",
               presets=MORSE_ANGLES),
-        Field("mode", "Mode", "choice", MODE_CUT, placement="left",
-              choices=[MODE_CUT, MODE_TRIM],
+        Field("mode", "Mode", "choice", mode_cut, placement="left",
+              choices=[mode_cut, MODE_TRIM],
               tooltip="Trim: progressive full-length passes along an "
                       "existing tapered surface, stepping from its "
                       "measured diameter at the face to the target"),
