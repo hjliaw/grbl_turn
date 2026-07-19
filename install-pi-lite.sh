@@ -9,7 +9,7 @@
 # Needs sudo rights (asks when required). Reboot when it finishes.
 #
 # Quitting the app (Device page -> Quit app) drops you at a shell on
-# tty1; `exit` or logging in again re-enters the kiosk.
+# tty1; `exit` from that shell re-enters the kiosk.
 
 set -euo pipefail
 
@@ -78,7 +78,10 @@ if ! grep -qF "$MARKER" "$HOME/.profile" 2>/dev/null; then
 $MARKER
 if [ "\$(tty)" = "/dev/tty1" ] && [ -z "\${WAYLAND_DISPLAY:-}" ]; then
     export QT_QPA_PLATFORM=wayland
-    exec cage -- "$PYTHON" -m grbl_turn --fullscreen >"\$HOME/cage.log" 2>&1
+    # no exec: quitting the app lands in this shell; 'exit' relaunches
+    cage -- "$PYTHON" -m grbl_turn --fullscreen >"\$HOME/cage.log" 2>&1
+    clear
+    echo "grbl_turn quit — 'exit' relaunches it, 'sudo poweroff' shuts down"
 fi
 EOF
 fi
