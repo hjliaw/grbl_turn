@@ -3,7 +3,10 @@ grid, the device (connection + machine control) page, parameter pages,
 and the run page all redraw in the same window (no popups; sized to
 work on a 7" screen)."""
 
-from PySide6.QtCore import QSize
+import subprocess
+from pathlib import Path
+
+from PySide6.QtCore import QSize, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QMainWindow, QMessageBox, QPushButton,
@@ -22,6 +25,14 @@ from grbl_turn.ui.run_page import RunPage
 from grbl_turn.units import Units, convert
 
 GRID_COLS = 4
+
+
+def on_raspberry_pi() -> bool:
+    try:
+        text = Path("/proc/device-tree/model").read_text()
+    except OSError:
+        return False
+    return "Raspberry Pi" in text
 
 STATE_COLORS = {"Idle": "rgb(120, 220, 120)", "Run": "rgb(120, 200, 255)",
                 "Jog": "rgb(120, 200, 255)", "Home": "rgb(120, 200, 255)",
@@ -180,13 +191,42 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(4)
+        quit_btn = QPushButton(QIcon(resource("x.svg")), " Quit app")
+        quit_btn.setToolTip("Close the application")
+        quit_btn.clicked.connect(self.close)
+        bottom = QHBoxLayout()
+        if on_raspberry_pi():
+            # arm/confirm instead of a dialog: a stray tap must not take
+            # the whole machine down
+            self.shutdown_btn = QPushButton("Power off")
+            self.shutdown_btn.setToolTip("Shut down the Raspberry Pi")
+            self.shutdown_btn.clicked.connect(self._on_shutdown_clicked)
+            self._shutdown_armed = QTimer(self)
+            self._shutdown_armed.setSingleShot(True)
+            self._shutdown_armed.setInterval(3000)
+            self._shutdown_armed.timeout.connect(
+                lambda: self.shutdown_btn.setText("Power off"))
+            bottom.addWidget(self.shutdown_btn)
+        bottom.addStretch(1)
+        bottom.addWidget(quit_btn)
+
         layout.addLayout(top)
         layout.addSpacing(20)
         layout.addWidget(self.connect_bar)
         layout.addSpacing(20)
         layout.addLayout(controls)
         layout.addStretch(1)
+        layout.addLayout(bottom)
         return page
+
+    def _on_shutdown_clicked(self) -> None:
+        if self._shutdown_armed.isActive():
+            self._shutdown_armed.stop()
+            self.close()   # disconnects the controller first
+            subprocess.Popen(["systemctl", "poweroff"])
+        else:
+            self.shutdown_btn.setText("Tap again to power off")
+            self._shutdown_armed.start()
 
     def _set_conn_ui(self, connected: bool) -> None:
         for b in (self.hold_btn, self.resume_btn, self.reset_btn,
