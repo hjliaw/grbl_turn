@@ -2,10 +2,14 @@
 transport and does all reads/writes from its worker thread."""
 
 import socket
-import termios
 from abc import ABC, abstractmethod
 
 import serial
+
+try:
+    import termios
+except ImportError:  # Windows: no termios, and no HUPCL to clear
+    termios = None
 
 
 class Transport(ABC):
@@ -52,10 +56,12 @@ class SerialTransport(Transport):
         # circuit. The driver raises both lines during open() — nothing
         # userspace can prevent — so instead keep them raised forever:
         # with HUPCL cleared, close() no longer drops them, and every
-        # open after the first is edge-free (no reset).
-        attrs = termios.tcgetattr(ser.fd)
-        attrs[2] &= ~termios.HUPCL
-        termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
+        # open after the first is edge-free (no reset). Windows has no
+        # HUPCL, so there the controller may reset once per connect.
+        if termios is not None:
+            attrs = termios.tcgetattr(ser.fd)
+            attrs[2] &= ~termios.HUPCL
+            termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
         self.ser = ser
 
     def close(self) -> None:
