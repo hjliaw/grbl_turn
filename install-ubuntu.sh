@@ -31,6 +31,8 @@ python3 -m venv "$VENV"
 "$PYTHON" -m pip install --upgrade pip wheel
 
 echo "==> Installing grbl_turn (pulls PySide6 + pyserial)"
+# a stale build/ from an earlier install can shadow newer source files
+rm -rf "$REPO_DIR/build"
 "$PYTHON" -m pip install "$REPO_DIR"
 
 echo "==> Smoke test (imports only)"

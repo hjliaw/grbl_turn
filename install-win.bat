@@ -28,6 +28,10 @@ echo ==^> Creating virtualenv at %VENVDIR%
 py -3 -m venv "%VENVDIR%"
 if errorlevel 1 goto :fail
 
+rem A stale build\ from an earlier install can shadow newer source files
+rem (setuptools stages the wheel there and only replaces "older" files).
+if exist "%REPO%build" rmdir /s /q "%REPO%build"
+
 echo ==^> Installing grbl_turn (pulls PySide6 + pyserial)
 "%VENVDIR%\Scripts\python.exe" -m pip install --upgrade pip wheel
 "%VENVDIR%\Scripts\python.exe" -m pip install "%REPO%."

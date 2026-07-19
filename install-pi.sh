@@ -37,6 +37,8 @@ python3 -m venv "$VENV"
 "$PYTHON" -m pip install --upgrade pip wheel
 
 echo "==> Installing grbl_turn (pulls PySide6 + pyserial)"
+# a stale build/ from an earlier install can shadow newer source files
+rm -rf "$REPO_DIR/build"
 if ! "$PYTHON" -m pip install "$REPO_DIR"; then
     # No usable PySide6 wheel (old OS image): fall back to the distro's
     # PySide6 (Qt 6.4 on Bookworm — sufficient) via system site packages.
