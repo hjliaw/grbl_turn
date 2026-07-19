@@ -9,9 +9,9 @@ from grbl_turn.units import Units, fmt
 FIELDS = [
     Field("start_dia", "Start diameter", "dia", 0.500, group="X (cross-slide)"),
     Field("end_dia", "End diameter", "dia", 0.400, group="X (cross-slide)"),
-    Field("doc", "Depth per pass (radial)", "len", 0.020, group="X (cross-slide)",
+    Field("doc", "Depth per pass, radial", "len", 0.020, group="X (cross-slide)",
           tooltip="Radial depth of cut for each roughing pass"),
-    Field("finish_allow", "Finish allowance (radial)", "len", 0.005,
+    Field("finish_allow", "Finish allowance, radial", "len", 0.005,
           group="X (cross-slide)", minimum=0.0,
           tooltip="Left for the final pass; 0 = no separate finish pass"),
     Field("length", "Length", "len", 0.750, group="Z (bed/leadscrew)",

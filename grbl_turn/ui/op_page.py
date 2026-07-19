@@ -19,9 +19,10 @@ from grbl_turn.ui.numpad import TouchNumberEdit
 from grbl_turn.ui.widgets import NumericCombo, TouchCombo
 from grbl_turn.units import MM_PER_INCH, Units
 
-LABEL_COL_W = 240   # uniform columns across the parameter groups
-UNIT_COL_W = 56
+LABEL_COL_W = 166   # uniform columns across the parameter groups
+UNIT_COL_W = 44
 AUTO_BTN_W = 36
+NUM_EDIT_MIN_W = 80   # room for a 3-decimal value even beside a preset combo
 
 
 class SegmentedChoice(QWidget):
@@ -250,7 +251,7 @@ class OpPage(QWidget):
         box = QWidget()
         row = QHBoxLayout(box)
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)   # macOS varies spacing by widget type otherwise
+        row.setSpacing(6)   # macOS varies spacing by widget type otherwise
         if f.presets:
             row.addWidget(self._preset_combo(f, widget))
         elif f.auto is not None:
@@ -410,6 +411,8 @@ class OpPage(QWidget):
                 w.setText(self._fmt_value(value))
             except (TypeError, ValueError):
                 w.setText(str(saved))
+        if isinstance(w, TouchNumberEdit):
+            w.setMinimumWidth(NUM_EDIT_MIN_W)
         if f.tooltip:
             w.setToolTip(f.tooltip)
         return w

@@ -31,26 +31,26 @@ def _fields(internal: bool) -> list[Field]:
             Field("target_dia", "Target diameter at face", "dia", 0.645,
                   group="X (cross-slide)", tooltip=target_tip,
                   visible_when=("mode", MODE_TRIM)),
-            Field("face_dia", "Diameter at face", "dia", 0.625,
+            Field("face_dia", "Diameter at face (d)", "dia", 0.625,
                   group="X (cross-slide)",
                   tooltip="Finished size when cutting from stock; the "
                           "existing surface when trimming"),
         ]
     else:
         x_fields = [
-            Field("start_dia", "Stock diameter", "dia", 0.750,
+            Field("start_dia", "Stock diameter (D)", "dia", 0.750,
                   group="X (cross-slide)",
                   visible_when=("mode", MODE_CUT)),
             Field("target_dia", "Target diameter at face", "dia", 0.480,
                   group="X (cross-slide)", tooltip=target_tip,
                   visible_when=("mode", MODE_TRIM)),
-            Field("face_dia", "Diameter at face", "dia", 0.500,
+            Field("face_dia", "Diameter at face (d)", "dia", 0.500,
                   group="X (cross-slide)",
                   tooltip="Finished size when cutting from stock; the "
                           "existing surface when trimming"),
         ]
     return [
-        Field("angle", "Taper angle (per side)", "angle", 7.0,
+        Field("angle", "Taper angle (a)", "angle", 7.0,
               group="Taper", minimum=0.01, maximum=80.0,
               tooltip="Half angle, as set on a compound slide; the "
                       "diameter changes by 2 x tan(angle) per unit length",
@@ -61,9 +61,9 @@ def _fields(internal: bool) -> list[Field]:
                       "existing tapered surface, stepping from its "
                       "measured diameter at the face to the target"),
     ] + x_fields + [
-        Field("length", "Taper length", "len", 1.000,
+        Field("length", "Taper length (L)", "len", 1.000,
               group="Z (bed/leadscrew)"),
-        Field("doc", "Depth per pass (radial)", "len", 0.020,
+        Field("doc", "Depth per pass, radial", "len", 0.020,
               group="X (cross-slide)"),
         Field("feed", "Feed", "feed", 3.0, group="Cutting"),
         Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
@@ -171,7 +171,7 @@ def generate_int(p, machine, units):
 
 
 OP_EXT = Operation("ext_taper", "External taper", "ext_taper.svg",
-                   "ext_taper.svg", _fields(False), generate_ext)
+                   "ext_taper_dim.svg", _fields(False), generate_ext)
 OP_INT = Operation("int_taper", "Internal taper", "int_taper.svg",
-                   "int_taper.svg", _fields(True), generate_int,
+                   "int_taper_dim.svg", _fields(True), generate_int,
                    silhouette="bore")

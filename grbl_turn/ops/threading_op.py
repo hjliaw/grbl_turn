@@ -22,7 +22,7 @@ INT_DEPTH_FACTOR = 0.5413
 
 def _fields(internal: bool) -> list[Field]:
     dia_field = (
-        Field("dia", "Bore diameter (thread minor)", "dia", 0.4056,
+        Field("dia", "Bore diameter (D)", "dia", 0.4056,
               group="X (cross-slide)",
               tooltip="Bore to the thread minor diameter before threading")
         if internal else
