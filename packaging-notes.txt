@@ -1,0 +1,64 @@
+grbl_turn — packaging / deployment notes
+=========================================
+
+Windows executable (PyInstaller)
+--------------------------------
+Must build ON Windows — PyInstaller does not cross-compile.
+
+    py -m venv venv
+    venv\Scripts\pip install . pyinstaller
+    venv\Scripts\pyinstaller --name grbl_turn --windowed ^
+        --add-data "grbl_turn\resources\images;grbl_turn\resources\images" ^
+        grbl_turn\__main__.py
+
+Result: dist\grbl_turn\grbl_turn.exe (ship the whole folder, or zip it).
+
+Notes:
+- resource() resolves paths relative to the module's __file__; the
+  --add-data mapping mirrors the same relative path, so all SVGs load
+  with no code changes.
+- PyInstaller's PySide6 hooks see the QtSvgWidgets import and bundle
+  the Qt SVG plugin/DLLs automatically.
+- --windowed hides the console; drop it while debugging to see
+  tracebacks.
+- --onefile gives a single .exe but starts slower (self-extracts
+  ~200 MB of PySide6 on every launch).
+- SmartScreen warns on unsigned .exe first run: More info -> Run anyway.
+  Code signing only matters for distribution.
+- pyserial uses COM port names on Windows (COM3 etc.) — pick the COM
+  port on first run.
+
+Alternative: Nuitka (nuitka --standalone --enable-plugin=pyside6) —
+faster startup, compiled, but more build hassle. Only if PyInstaller's
+result bothers you.
+
+
+Raspberry Pi
+------------
+No compiling needed — it's Linux, Python runs directly. The app's
+800x480 layout matches the official Pi 7" touchscreen.
+
+Requirement: 64-bit Raspberry Pi OS (aarch64). Qt ships PySide6 wheels
+for aarch64 only — no 32-bit armhf wheels. Pi 4 or Pi 5 recommended
+(Pi 3 works but sluggish).
+
+    sudo apt install python3-venv
+    python3 -m venv ~/grbl_turn_env
+    ~/grbl_turn_env/bin/pip install /path/to/grbl_turn
+    ~/grbl_turn_env/bin/python -m grbl_turn
+
+If pip's PySide6 install is slow/fails on an older image, fall back to
+distro packages: Raspberry Pi OS Bookworm has python3-pyside6.* (older
+Qt 6.4, sufficient for this app). Then create the venv with
+--system-site-packages and pip install only pyserial.
+
+Pi practicalities:
+- Serial: GRBL appears as /dev/ttyUSB0 or /dev/ttyACM0. Add user to
+  dialout group or opening the port fails with a permissions error:
+      sudo usermod -aG dialout $USER   (then log out/in)
+- Kiosk startup: .desktop file in ~/.config/autostart/ pointing at the
+  venv's "python -m grbl_turn" (or a systemd user service). app.py
+  currently sizes to min(900, screen width) -> 800x480 layout on the
+  7" panel.
+- PyInstaller works on the Pi too, but a venv + autostart entry is
+  simpler and easier to update (git pull && pip install .).
