@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from PySide6.QtGui import QIcon
@@ -16,7 +17,14 @@ def main() -> None:
                         help="preselect the built-in GRBL simulator")
     parser.add_argument("--fullscreen", action="store_true",
                         help="fill the screen (automatic on small displays)")
+    parser.add_argument("--scale", type=float, metavar="FACTOR",
+                        help="scale the whole UI, e.g. 1.9 for a 1080p "
+                        "screen (sets QT_SCALE_FACTOR)")
     args = parser.parse_args()
+
+    if args.scale:
+        # must be in the environment before QApplication is created
+        os.environ["QT_SCALE_FACTOR"] = str(args.scale)
 
     if sys.platform == "win32":
         # Without an explicit AppUserModelID Windows groups the app under
