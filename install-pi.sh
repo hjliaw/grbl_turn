@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # grbl_turn installer for Raspberry Pi 4 + official 7" touchscreen.
 #
-# Run as the normal desktop user (pi) from the repo checkout on the Pi:
+# Run as your normal desktop user from the repo checkout on the Pi —
+# desktop autologin lands on this same account (via SUDO_USER):
 #     ./install-pi.sh
 # Needs sudo rights (asks when required). Reboot when it finishes;
 # the Pi then boots straight into the app, fullscreen.

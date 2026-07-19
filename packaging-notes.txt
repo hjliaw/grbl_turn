@@ -56,6 +56,11 @@ Raspberry Pi
 No compiling needed — it's Linux, Python runs directly. The app's
 800x480 layout matches the official Pi 7" touchscreen.
 
+Two installers: install-pi.sh for images with the desktop (autostart
+.desktop entry), install-pi-lite.sh for Raspberry Pi OS Lite — no
+desktop; tty1 autologin execs the cage Wayland compositor running just
+the app (Quit app drops to a shell on tty1).
+
 Requirement: 64-bit Raspberry Pi OS (aarch64). Qt ships PySide6 wheels
 for aarch64 only — no 32-bit armhf wheels. Pi 4 or Pi 5 recommended
 (Pi 3 works but sluggish).
