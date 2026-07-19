@@ -10,7 +10,7 @@ FIELDS = [
     Field("work_dia", "Stock diameter", "dia", 0.750, group="X (cross-slide)"),
     Field("end_dia", "End diameter", "dia", 0.0, group="X (cross-slide)",
           minimum=0.0, tooltip="0 = part off at center"),
-    Field("z_pos", "Z position (from face)", "zpos", 0.500,
+    Field("z_pos", "Z position", "zpos", 0.500,
           group="Z (bed/leadscrew)",
           tooltip="Distance from the face to the LEFT side of the blade;\n"
                   "the cut happens at Z-value"),

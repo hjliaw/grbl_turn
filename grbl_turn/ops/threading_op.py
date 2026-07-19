@@ -26,37 +26,37 @@ def _fields(internal: bool) -> list[Field]:
               group="X (cross-slide)",
               tooltip="Bore to the thread minor diameter before threading")
         if internal else
-        Field("dia", "Major diameter (thread OD)", "dia", 0.500,
+        Field("dia", "Major diameter (D)", "dia", 0.500,
               group="X (cross-slide)")
     )
     return [
         dia_field,
-        Field("total_depth", "Total depth", "len", 0.0,
+        Field("total_depth", "Total depth (K)", "len", 0.0,
               group="X (cross-slide)", minimum=0.0,
               tooltip="Radial thread depth; auto = 0.6134x pitch (ext) or "
                       "0.5413x pitch (int) for 60 deg threads",
               auto=lambda p, u: _pitch(p, u) * (INT_DEPTH_FACTOR if internal
                                                 else EXT_DEPTH_FACTOR)),
-        Field("first_depth", "First pass depth", "len", 0.003,
+        Field("first_depth", "First pass depth (J)", "len", 0.003,
               group="X (cross-slide)"),
         Field("degression", "Depth degression (R)", "ratio", 1.5,
               group="X (cross-slide)", minimum=1.0, maximum=2.0,
               tooltip="G76 R word: 1.0 = same depth every pass, "
                       "2.0 = constant chip area (passes taper off)"),
-        Field("spring", "Spring passes", "int", 1, group="X (cross-slide)",
+        Field("spring", "Spring passes (H)", "int", 1, group="X (cross-slide)",
               minimum=0, maximum=9),
-        Field("pitch_val", "Pitch", "pitch", 20.0, group="Z (bed/leadscrew)",
+        Field("pitch_val", "Pitch (P)", "pitch", 20.0, group="Z (bed/leadscrew)",
               default_mm=1.5,
               tooltip="Inch mode: TPI; mm mode: mm/rev"),
-        Field("length", "Thread length (from face)", "len", 0.500,
+        Field("length", "Thread length (Z)", "len", 0.500,
               group="Z (bed/leadscrew)"),
         Field("lead_in", "Lead-in", "len", 0.0,
               group="Z (bed/leadscrew)", minimum=0.0,
               tooltip="Sync-up distance in front of the face; auto = 2x pitch",
               auto=lambda p, u: 2.0 * _pitch(p, u)),
-        Field("compound", "Compound angle", "choice", "29.5", group="Cutting",
+        Field("compound", "Compound angle (Q)", "choice", "29.5", group="Cutting",
               choices=["0", "29.5", "30"], unit="deg"),
-        Field("clearance", "Clearance (radial)", "len", 0.020, group="Cutting"),
+        Field("clearance", "Clearance (I)", "len", 0.020, group="Cutting"),
     ]
 
 
@@ -130,5 +130,5 @@ OP_EXT = Operation("ext_thread", "External thread", "ext_thread2.svg",
                    "ext_thread2_dim.svg", _fields(False), generate_ext,
                    is_threading=True)
 OP_INT = Operation("int_thread", "Internal thread", "int_thread2.svg",
-                   "int_thread2.svg", _fields(True), generate_int,
+                   "int_thread2_dim.svg", _fields(True), generate_int,
                    is_threading=True, silhouette="bore")

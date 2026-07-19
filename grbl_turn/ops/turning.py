@@ -14,7 +14,7 @@ FIELDS = [
     Field("finish_allow", "Finish allowance (radial)", "len", 0.005,
           group="X (cross-slide)", minimum=0.0,
           tooltip="Left for the final pass; 0 = no separate finish pass"),
-    Field("length", "Length (from face)", "len", 0.750, group="Z (bed/leadscrew)",
+    Field("length", "Length", "len", 0.750, group="Z (bed/leadscrew)",
           tooltip="Cut runs from Z0 to Z-length"),
     Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting",

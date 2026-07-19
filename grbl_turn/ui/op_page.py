@@ -184,8 +184,8 @@ class OpPage(QWidget):
         right.addWidget(scroll, 1)
 
         body = QHBoxLayout()
-        body.addLayout(left, 1)
-        body.addLayout(right, 2)   # the form needs the width on 800px
+        body.addLayout(left, 2)
+        body.addLayout(right, 3)   # the form needs the width on 800px
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)

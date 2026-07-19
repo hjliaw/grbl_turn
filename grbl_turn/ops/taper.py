@@ -61,7 +61,7 @@ def _fields(internal: bool) -> list[Field]:
                       "existing tapered surface, stepping from its "
                       "measured diameter at the face to the target"),
     ] + x_fields + [
-        Field("length", "Taper length (from face)", "len", 1.000,
+        Field("length", "Taper length", "len", 1.000,
               group="Z (bed/leadscrew)"),
         Field("doc", "Depth per pass (radial)", "len", 0.020,
               group="X (cross-slide)"),

@@ -16,7 +16,7 @@ FIELDS = [
           group="X (cross-slide)"),
     Field("finish_allow", "Finish allowance (radial)", "len", 0.003,
           group="X (cross-slide)", minimum=0.0),
-    Field("length", "Bore depth (from face)", "len", 0.500,
+    Field("length", "Bore depth", "len", 0.500,
           group="Z (bed/leadscrew)"),
     Field("feed", "Feed", "feed", 2.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.020, group="Cutting",
