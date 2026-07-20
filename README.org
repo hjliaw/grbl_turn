@@ -6,7 +6,7 @@
 
 [[screenshots/screenshot_ext_thread.png]]
 
-** description
+** Description
 
 Pick a lathe operation from the icon grid, enter its parameters, preview
 the generated G-code and toolpath, and stream it to the controller over
@@ -18,11 +18,13 @@ G-code text, and the comm console. Goes fullscreen automatically on
 small displays (or with =--fullscreen=).
 
 ** Install & run
-install python 3.10+ first, then run corresponding install-* script for your OS
+Install python 3.10+ first, then run corresponding install-* script for your OS.
 
-install-pi-lite.sh     for raspberry pi (64bit) without x11 desktop, tested with Bookworm
-install-pi-ubuntu.sh   for Ubuntu and most Linux, tested on Ubuntu 22.04
-install-win.sh         for Windows, tested on Windows-10
+=install-pi-lite.sh= — for Raspberry Pi (64bit) without x11 desktop, tested with Bookworm
+
+=install-pi-ubuntu.sh= — for Ubuntu and most Linux, tested on Ubuntu 22.04
+
+=install-win.bat= — for Windows, tested on Windows 10
 
 ** Conventions
 - X0 = spindle centerline, Z0 = part face, Z negative into the work.
