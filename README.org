@@ -12,6 +12,12 @@ small displays (or with =--fullscreen=).
 Operations: external thread / taper / OD turning / facing,
 internal thread / taper / boring, parting.
 
+** Screenshots
+
+[[screenshots/screenshot_main.png]]
+
+[[screenshots/screenshot_ext_thread.png]]
+
 ** Install & run
 #+begin_src sh
 python3 -m venv .venv

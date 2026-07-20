@@ -2,6 +2,7 @@
 name = "grbl-turn"
 version = "0.1.0"
 description = "Conversational lathe GUI for ESP32 GRBL controllers"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.6",
