@@ -1,2 +1,0 @@
-* quirks of Qt designer
-** SVG end arrow head doesn't show up, replaced with circle
