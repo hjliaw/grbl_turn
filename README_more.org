@@ -1,12 +1,4 @@
-* grbl_turn — make ezNC2 even easier to use
-
-** Screenshots
-
-[[screenshots/screenshot_main.png]]
-
-[[screenshots/screenshot_ext_thread.png]]
-
-** description
+* grbl_turn — conversational lathe GUI for ESP32 GRBL
 
 Pick a lathe operation from the icon grid, enter its parameters, preview
 the generated G-code and toolpath, and stream it to the controller over
@@ -17,12 +9,29 @@ open an on-screen keypad; the run page toggles between toolpath plot,
 G-code text, and the comm console. Goes fullscreen automatically on
 small displays (or with =--fullscreen=).
 
-** Install & run
-install python 3.10+ first, then run corresponding install-* script for your OS
+Operations: external thread / taper / OD turning / facing,
+internal thread / taper / boring, parting.
 
-install-pi-lite.sh     for raspberry pi (64bit) without x11 desktop, tested with Bookworm
-install-pi-ubuntu.sh   for Ubuntu and most Linux, tested on Ubuntu 22.04
-install-win.sh         for Windows, tested on Windows-10
+** Screenshots
+
+[[screenshots/screenshot_main.png]]
+
+[[screenshots/screenshot_ext_thread.png]]
+
+** Install & run
+#+begin_src sh
+python3 -m venv .venv
+.venv/bin/pip install -e .
+.venv/bin/grbl-turn            # or: .venv/bin/python -m grbl_turn
+.venv/bin/grbl-turn --sim      # built-in GRBL simulator, no hardware needed
+#+end_src
+
+If =python3 -m venv= fails at ensurepip (seen with some homebrew pythons),
+bootstrap pip instead:
+#+begin_src sh
+python3 -m venv --without-pip .venv
+curl -sSL https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
+#+end_src
 
 ** Conventions
 - X0 = spindle centerline, Z0 = part face, Z negative into the work.
@@ -45,6 +54,16 @@ motion stops. Use the machine E-stop for real emergencies.
 
 ** Connectivity
 - Serial: USB, default 115200 baud.
-- WiFi: raw TCP ("telnet") to the controller, default port 23. [not tested]
+- WiFi: raw TCP ("telnet") to the controller, default port 23.
 - Simulator: in-process fake GRBL for trying the UI and testing.
 
+** Development
+#+begin_src sh
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest tests/
+#+end_src
+
+The 2021 PyQt5 prototype (Qt Designer mockups) lives in =attic/=.
+
+** quirks of Qt designer (historical)
+- SVG end arrow head doesn't show up, replaced with circle
