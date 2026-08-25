@@ -15,6 +15,9 @@ class NumPad(QDialog):
                          | Qt.WindowType.FramelessWindowHint)
         self.setModal(True)
         self.integer = integer
+        # keep keyboard focus (and Enter/Return) on the dialog itself rather
+        # than delegating to a grid button — see showEvent()
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         title = QLabel(label)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -36,6 +39,8 @@ class NumPad(QDialog):
             for c, key in enumerate(row):
                 b = QPushButton(key)
                 b.setObjectName("numpad")
+                b.setAutoDefault(False)   # don't let a focused key eat Enter
+                b.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # tap-only, no tabbing
                 b.clicked.connect(lambda checked=False, k=key: self.on_key(k))
                 grid.addWidget(b, r, c)
                 if key == "OK":
@@ -49,6 +54,15 @@ class NumPad(QDialog):
         layout.addWidget(self.display)
         layout.addLayout(grid)
         self._validate()
+
+    def showEvent(self, event) -> None:
+        """Frameless dialogs aren't always given real keyboard focus by the
+        window manager (seen on Ubuntu/GNOME) — without this, Enter/Esc
+        silently go to whatever had focus before the popup opened."""
+        super().showEvent(event)
+        self.raise_()
+        self.activateWindow()
+        self.setFocus(Qt.FocusReason.PopupFocusReason)
 
     def keyPressEvent(self, event) -> None:
         """A real keyboard drives the pad too: digits, . - backspace,
