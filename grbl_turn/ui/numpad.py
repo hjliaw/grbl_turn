@@ -138,6 +138,10 @@ class TouchNumberEdit(QLineEdit):
         self.pad_label = label
         self.integer = integer
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        # all typing goes through NumPad; read-only stops Windows' touch
+        # keyboard from popping up (and immediately vanishing again when
+        # NumPad steals focus) on a tap
+        self.setReadOnly(True)
 
     def mouseReleaseEvent(self, event) -> None:
         super().mouseReleaseEvent(event)
