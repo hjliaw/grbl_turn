@@ -6,7 +6,7 @@ work on a 7" screen)."""
 import subprocess
 from pathlib import Path
 
-from PySide6.QtCore import QSize, QTimer
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QMainWindow, QMessageBox, QPushButton,
@@ -107,6 +107,10 @@ class MainWindow(QMainWindow):
         strip.setContentsMargins(6, 0, 6, 0)
         self.state_label = QLabel("disconnected")
         self.state_label.setObjectName("state")
+        # GRBL alarm/error lines are raw device strings of unbounded length;
+        # cap the label so one long line can never push the rest of the
+        # strip (units, device button) off screen
+        self.state_label.setMaximumWidth(400)
         self.x_label = QLabel("X ?")
         self.x_label.setObjectName("dro")
         self.z_label = QLabel("Z ?")
@@ -255,9 +259,12 @@ class MainWindow(QMainWindow):
         self.controller.connect_transport(transport)
 
     def _set_state(self, text: str, color: str = NEUTRAL) -> None:
-        self.state_label.setText(text)
+        fm = self.state_label.fontMetrics()
+        elided = fm.elidedText(text, Qt.TextElideMode.ElideRight,
+                                self.state_label.maximumWidth())
+        self.state_label.setText(elided)
         self.state_label.setStyleSheet(f"color: {color};")
-        self.state_label.setToolTip("")
+        self.state_label.setToolTip(text if elided != text else "")
 
     def on_connected(self, desc: str) -> None:
         self.report_units = Units.MM   # until this device's $13 arrives
