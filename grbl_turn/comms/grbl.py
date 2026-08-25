@@ -30,6 +30,7 @@ def parse_status(line: str) -> dict:
     if not m:
         return {}
     status = {"state": m.group(1)}
+    measured_rpm = None
     for part in m.group(2).split("|"):
         if ":" not in part:
             continue
@@ -40,6 +41,12 @@ def parse_status(line: str) -> dict:
             feed, rpm = val.split(",")[:2]
             status["feed"] = float(feed)
             status["rpm"] = float(rpm)
+        elif key == "RPM":
+            # actual measured spindle speed (spindle-sync firmware); more
+            # accurate than FS's commanded speed, so it wins if both appear
+            measured_rpm = float(val)
+    if measured_rpm is not None:
+        status["rpm"] = measured_rpm
     return status
 
 
