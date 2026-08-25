@@ -257,6 +257,7 @@ class MainWindow(QMainWindow):
     def _set_state(self, text: str, color: str = NEUTRAL) -> None:
         self.state_label.setText(text)
         self.state_label.setStyleSheet(f"color: {color};")
+        self.state_label.setToolTip("")
 
     def on_connected(self, desc: str) -> None:
         self.report_units = Units.MM   # until this device's $13 arrives
@@ -265,7 +266,10 @@ class MainWindow(QMainWindow):
         self._set_conn_ui(True)
 
     def on_disconnected(self, reason: str) -> None:
-        self._set_state("disconnected" + (f" — {reason}" if reason else ""))
+        # reason can be a long OS/driver error string (e.g. device unplugged);
+        # keep the label short and put the detail in a tooltip instead
+        self._set_state("disconnected")
+        self.state_label.setToolTip(reason)
         self.connect_bar.connect_btn.setText("Connect")
         self._set_conn_ui(False)
         for label in (self.x_label, self.z_label, self.rpm_label):
