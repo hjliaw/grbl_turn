@@ -197,20 +197,16 @@ def test_thread_g76_z_word_follows_the_lead_in():
     assert "Z-0.5000" in g76        # no lead-in: just the thread
 
 
-def test_thread_internal_g76_has_no_x_move():
-    # internal is parked clear of the crest already: nothing to back out of
-    op = BY_KEY["int_thread"]
-    lines = op.generate(defaults(op) | {"total_depth": 0.027}, MACHINE,
-                        Units.INCH)
-    assert not any("X" in l for l in body(lines))
-
-
 def test_thread_internal_g76_returns_to_the_start():
-    # same return-to-corner close-out as external threading, it just never
-    # needs an X move since internal starts and ends on the drive line
+    # internal touches the crest at the face too, same as external, then
+    # backs inward (toward the centerline) to the drive line before the
+    # cycle and back out to the crest again once it's done
     op = BY_KEY["int_thread"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
-    assert not any("X" in l for l in body(lines))
+    b = body(lines)
+    g76 = [l for l in b if l.startswith("G76")][0]
+    assert "I0.0200" in g76        # internal: peak above the drive line
+    assert [l for l in b if "X" in l] == ["G0 X-0.0200", "G0 X0.0200"]
     end = positions(lines)[-1]
     assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 

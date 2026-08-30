@@ -76,24 +76,23 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     z_end = -p["length"]
 
     # No absolute X exists here: the thread's diameter is never asked for, so
-    # X is measured from wherever the operator parks the tool. External starts
-    # on the crest and backs out to the drive line; internal starts on the
-    # drive line already, a clearance inside the crest.
-    x_drive = 0.0 if internal else clear
-    x_peak = clear if internal else 0.0
+    # X is measured from wherever the operator parks the tool: the tool tip
+    # touching the crest at the face corner (X=0), for both kinds. Both then
+    # back off to the drive line before the cycle starts — outward (+X) for
+    # external, inward toward the centerline (-X) for internal.
+    x_drive = -clear if internal else clear
 
     title = "Internal threading" if internal else "External threading"
     kind = "mm/rev" if units is Units.MM else "TPI"
-    note = (f"with the tool {p['clearance']} clear of the crest at the face"
-            if internal else "with the tool touching the crest at the face")
-    prog = Program(machine, units, origin_r=None, start_note=note)
+    prog = Program(machine, units, origin_r=None,
+                   start_note="with the tool touching the crest at the face")
     prog.header(
         title,
         [f"pitch {p['pitch_val']:g} {kind}, length {p['length']}",
          f"depth {depth:.4f} radial, first {p['first_depth']}, "
          f"compound {angle:g} deg",
          "REQUIRES spindle sync (encoder); feed hold is DEFERRED during passes"])
-    prog.rapid(x=x_drive)        # crest -> drive line (external only)
+    prog.rapid(x=x_drive)        # crest -> drive line
     prog.rapid(z=lead_in)
 
     if machine.has_g76:
@@ -115,7 +114,7 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     for d in thread_infeeds(depth, p["first_depth"], p["degression"],
                             int(p["spring"])):
         prog.rapid(z=lead_in - flank_offset(d, angle))
-        prog.rapid(x=x_peak - inward * d)
+        prog.rapid(x=-inward * d)
         prog.raw(f"G33 Z{prog.z_delta(z_end)} K{fmt(pitch, units)}")
         prog.rapid(x=x_drive)
     return prog.end()
