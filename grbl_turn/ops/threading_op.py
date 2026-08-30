@@ -99,16 +99,18 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     if machine.has_g76:
         # I: thread peak offset from the drive line (negative = external).
         # The Z word is a distance here like every other axis word; I/J/K are
-        # magnitudes either way. Where the cycle leaves Z afterwards differs
-        # between firmwares, so the program ends on the cycle.
+        # magnitudes either way. eznc returns both X and Z to wherever the
+        # cycle started (drive line, lead-in Z) once it's done, per
+        # eznc_g76_notes.txt, so the tracked position is already correct
+        # without advancing it to the Z word — the program can close out
+        # normally, same as the G33 fallback.
         i_word = -inward * clear
         prog.raw(
             f"G76 P{fmt(pitch, units)} Z{prog.z_delta(z_end, advance=False)} "
             f"I{fmt(i_word, units)} J{fmt(p['first_depth'], units)} "
             f"R{p['degression']:g} K{fmt(depth, units)} "
             f"Q{angle:g} H{int(p['spring'])}")
-        return prog.stop("G76 ends on the drive line in X; Z is left wherever "
-                         "the firmware puts it - re-touch before re-running")
+        return prog.end()
 
     for d in thread_infeeds(depth, p["first_depth"], p["degression"],
                             int(p["spring"])):

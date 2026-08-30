@@ -179,9 +179,10 @@ def test_thread_g76_words():
     # lead-in plus the thread
     assert "G0 Z0.1000" in lines
     assert "Z-0.6000" in g76[0]
-    # external starts on the crest: one hop out to the drive line by abs(I),
-    # and no other X motion — the cycle infeeds from there
-    assert [l for l in body(lines) if "X" in l] == ["G0 X0.0200"]
+    # external starts on the crest: one hop out to the drive line by abs(I)
+    # before the cycle, and one hop back after it — no other X motion, so
+    # the cycle itself infeeds from there
+    assert [l for l in body(lines) if "X" in l] == ["G0 X0.0200", "G0 X-0.0200"]
     assert body(lines).index("G0 X0.0200") < body(lines).index(g76[0])
 
 
@@ -244,14 +245,18 @@ def test_thread_g33_returns_to_the_start():
     assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 
 
-def test_thread_g76_stops_on_the_cycle():
-    # where G76 leaves Z is firmware-dependent, so no relative move may
-    # follow it
+def test_thread_g76_returns_to_the_start():
+    # eznc returns both X and Z to wherever the cycle started once G76
+    # finishes, so the program can close out and be re-run unchanged, same
+    # as the G33 fallback
     op = BY_KEY["ext_thread"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     b = body(lines)
-    assert b[-1] == "M2"
-    assert b[-2].startswith("G76")
+    i = next(k for k, l in enumerate(b) if l.startswith("G76"))
+    assert b[i + 1] == "G0 Z-0.1000"   # undo the lead-in, back to the face
+    assert b[i + 2] == "G0 X-0.0200"  # undo the clearance, back to the crest
+    assert b[i + 3] == "M2"
+    assert len(b) == i + 4
 
 
 def test_thread_metric_pitch():
