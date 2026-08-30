@@ -114,26 +114,6 @@
      id="path2"
      sodipodi:nodetypes="cccccccccccccccccccccccccccccccccccc"
      style="fill:#e1f0e1;fill-opacity:0.8;stroke:#fefeff;stroke-opacity:1" />
-  <text
-     x="28"
-     y="300.85001"
-     text-anchor="middle"
-     dominant-baseline="central"
-     font-family="Lato, 'Helvetica Neue', Arial, system-ui, sans-serif"
-     font-weight="700"
-     font-size="18px"
-     fill="#232936"
-     id="text6">D</text>
-  <text
-     x="490.38535"
-     y="572"
-     text-anchor="middle"
-     dominant-baseline="central"
-     font-family="Lato, 'Helvetica Neue', Arial, system-ui, sans-serif"
-     font-weight="700"
-     font-size="18px"
-     fill="#232936"
-     id="text10">L</text>
   <line
      x1="445"
      y1="510"
@@ -266,26 +246,6 @@
        id="tspan26"
        x="330"
        y="460">P</tspan></text>
-  <line
-     x1="190"
-     y1="172.1001"
-     x2="190"
-     y2="427.90826"
-     stroke="#2f8fce"
-     stroke-width="2.20179"
-     marker-end="url(#arrow)"
-     id="line6"
-     style="stroke-width:2;stroke-dasharray:none;marker-start:url(#marker1)" />
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:48px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;overflow:visible;fill:#ffffff;fill-opacity:1"
-     x="197"
-     y="314.30038"
-     id="text26-1"><tspan
-       sodipodi:role="line"
-       id="tspan31"
-       x="197"
-       y="314.30038">D</tspan></text>
   <line
      x1="240"
      y1="175"

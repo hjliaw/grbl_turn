@@ -115,44 +115,6 @@
      sodipodi:nodetypes="cccccccccccccccccccccccccccccccccc"
      style="fill:#e1f0e1;fill-opacity:0.80000001" />
   <line
-     x1="90"
-     y1="90"
-     x2="30"
-     y2="90"
-     stroke="#a4abbb"
-     stroke-width="1"
-     id="line3"
-     style="stroke-width:2;stroke-dasharray:none" />
-  <line
-     x1="90"
-     y1="510"
-     x2="30"
-     y2="510"
-     stroke="#a4abbb"
-     stroke-width="1"
-     id="line4"
-     style="stroke-width:2;stroke-dasharray:none" />
-  <line
-     x1="60"
-     y1="90"
-     x2="60"
-     y2="508.78513"
-     stroke="#2f8fce"
-     stroke-width="2.20179"
-     marker-end="url(#arrow)"
-     id="line6"
-     style="stroke-width:2;stroke-dasharray:none;marker-start:url(#marker1)" />
-  <text
-     x="28"
-     y="300.85001"
-     text-anchor="middle"
-     dominant-baseline="central"
-     font-family="Lato, 'Helvetica Neue', Arial, system-ui, sans-serif"
-     font-weight="700"
-     font-size="18px"
-     fill="#232936"
-     id="text6">D</text>
-  <line
      x1="240"
      y1="20"
      x2="240"
@@ -170,16 +132,6 @@
      stroke-width="1.39616"
      id="line8"
      style="stroke-width:2;stroke-dasharray:none" />
-  <text
-     x="490.38535"
-     y="572"
-     text-anchor="middle"
-     dominant-baseline="central"
-     font-family="Lato, 'Helvetica Neue', Arial, system-ui, sans-serif"
-     font-weight="700"
-     font-size="18px"
-     fill="#232936"
-     id="text10">L</text>
   <line
      x1="348.52979"
      y1="90"
@@ -303,16 +255,6 @@
        id="tspan26"
        x="390"
        y="130">P</tspan></text>
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:48px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;overflow:visible;fill:#ffffff;fill-opacity:1"
-     x="15.828125"
-     y="314.89844"
-     id="text26-1"><tspan
-       sodipodi:role="line"
-       id="tspan31"
-       x="15.828125"
-       y="314.89844">D</tspan></text>
   <line
      x1="240.04999"
      y1="45"
