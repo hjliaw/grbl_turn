@@ -1,7 +1,9 @@
 G76 Threading Cycle — Firmware Behaviour Notes
 ===============================================
 Written 2026-08-28, updated 2026-08-29 when grbl_turn moved to fully
-relative output.  Sources read directly:
+relative output, updated again 2026-08-30 when eznc's G76 ending position
+changed to match grblHAL/LinuxCNC (see ENDING POSITION OF THE CYCLE below).
+Sources read directly:
 
   eznc      ~/cnc/eznc/eznc/grbl_in_eznc/gcode.cpp, motion_control.cpp,
             g76_plan.txt
@@ -24,25 +26,24 @@ ENDING POSITION OF THE CYCLE
   LinuxCNC   drive-line X, Z at the Z word.  "The final position of the
              tool will be at the end of the drive line."
   grblHAL    same: drive-line X, Z at the Z word.
-  eznc       drive-line X, Z BACK AT THE START.
+  eznc       AS OF 2026-08-30, same as the other two: drive-line X, Z at
+             the Z word (the thread's programmed end).
 
-eznc: motion_control.cpp:711-715 (per pass) and again at the normal exit,
-:722-726, with the comment "back to the start position so gc_state.position
-stays truthful".  Both X and Z return.
+All three now agree: X ends on the drive line, Z ends at the Z word.
 
-X ends on the drive line in ALL THREE.  Z does not agree.
-
-THIS IS WHY A TRAILING RETRACT CAN'T BE FIRMWARE-AGNOSTIC.  In relative
-mode a move after the cycle has to know where Z ended, and that answer
-differs between the two.  grbl_turn targets eznc, so threading_op relies
-on eznc's behaviour specifically: the Program object's tracked position is
-left at the pre-cycle (drive-line, lead-in) point rather than advanced to
-the Z word, and the cycle is followed by ordinary rapids back to the
-origin plus M2 — the same close-out the G33 fallback uses. This emits
-CORRECT code only on eznc; ported to a grblHAL machine (Z ends at the Z
-word, not back at the start) the trailing rapids would be wrong by however
-far the thread cut, silently. If grblHAL support is ever added, this needs
-a MachineProfile flag to pick the right ending Z per firmware.
+Before 2026-08-30, eznc returned Z to wherever the cycle started instead
+(motion_control.cpp:711-715 per pass, :722-726 at the normal exit,
+comment "back to the start position so gc_state.position stays
+truthful").  That divergence is why threading_op used to leave the
+program stopped on the G76 line rather than following it with a relative
+retract — a move after the cycle has to know where Z ended, and the
+answer differed between firmwares.  Now that eznc matches grblHAL/
+LinuxCNC, threading_op advances the Program object's tracked position to
+the Z word and closes the program out with an ordinary return to the
+origin plus M2 — the same close-out the G33 fallback always used.  If a
+firmware that still returns Z to the start is ever targeted again, this
+needs a MachineProfile flag to pick the right ending Z per firmware,
+since the code no longer handles that case.
 
 The G33 fallback has no such problem regardless of firmware: it knows
 where every move ends, so it returns to the start position and can be

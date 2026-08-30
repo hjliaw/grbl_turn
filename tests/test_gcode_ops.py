@@ -191,8 +191,9 @@ def test_thread_g76_z_word_follows_the_lead_in():
     # tool rather than repeating the thread length blindly
     op = BY_KEY["ext_thread"]
     lines = op.generate(defaults(op) | {"lead_in": 0.0}, MACHINE, Units.INCH)
-    assert not any(l.startswith("G0 Z") for l in lines)   # already at the face
     g76 = [l for l in lines if l.startswith("G76")][0]
+    before = lines[:lines.index(g76)]
+    assert not any(l.startswith("G0 Z") for l in before)  # already at the face
     assert "Z-0.5000" in g76        # no lead-in: just the thread
 
 
@@ -246,17 +247,19 @@ def test_thread_g33_returns_to_the_start():
 
 
 def test_thread_g76_returns_to_the_start():
-    # eznc returns both X and Z to wherever the cycle started once G76
-    # finishes, so the program can close out and be re-run unchanged, same
-    # as the G33 fallback
+    # eznc now ends the cycle at the Z word (thread end) like grblHAL and
+    # LinuxCNC, so the program knows exactly where it is and can close out
+    # with an ordinary return to the origin, same as the G33 fallback
     op = BY_KEY["ext_thread"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     b = body(lines)
     i = next(k for k, l in enumerate(b) if l.startswith("G76"))
-    assert b[i + 1] == "G0 Z-0.1000"   # undo the lead-in, back to the face
-    assert b[i + 2] == "G0 X-0.0200"  # undo the clearance, back to the crest
+    assert b[i + 1] == "G0 Z0.5000"    # back from the thread end to the face
+    assert b[i + 2] == "G0 X-0.0200"  # back from the drive line to the crest
     assert b[i + 3] == "M2"
     assert len(b) == i + 4
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 
 
 def test_thread_metric_pitch():

@@ -99,14 +99,14 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     if machine.has_g76:
         # I: thread peak offset from the drive line (negative = external).
         # The Z word is a distance here like every other axis word; I/J/K are
-        # magnitudes either way. eznc returns both X and Z to wherever the
-        # cycle started (drive line, lead-in Z) once it's done, per
-        # eznc_g76_notes.txt, so the tracked position is already correct
-        # without advancing it to the Z word — the program can close out
-        # normally, same as the G33 fallback.
+        # magnitudes either way. eznc now matches grblHAL and LinuxCNC: X
+        # ends on the drive line, Z ends at the Z word (the thread's
+        # programmed end), so the tracked position advances there and the
+        # program closes out with an ordinary return to the start, same as
+        # the G33 fallback.
         i_word = -inward * clear
         prog.raw(
-            f"G76 P{fmt(pitch, units)} Z{prog.z_delta(z_end, advance=False)} "
+            f"G76 P{fmt(pitch, units)} Z{prog.z_delta(z_end)} "
             f"I{fmt(i_word, units)} J{fmt(p['first_depth'], units)} "
             f"R{p['degression']:g} K{fmt(depth, units)} "
             f"Q{angle:g} H{int(p['spring'])}")
