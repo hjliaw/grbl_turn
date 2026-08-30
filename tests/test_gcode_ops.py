@@ -205,6 +205,16 @@ def test_thread_internal_g76_has_no_x_move():
     assert not any("X" in l for l in body(lines))
 
 
+def test_thread_internal_g76_returns_to_the_start():
+    # same return-to-corner close-out as external threading, it just never
+    # needs an X move since internal starts and ends on the drive line
+    op = BY_KEY["int_thread"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    assert not any("X" in l for l in body(lines))
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
+
+
 def test_thread_g33_fallback():
     op = BY_KEY["ext_thread"]
     machine = MachineProfile(has_g76=False)
