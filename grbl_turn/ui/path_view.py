@@ -7,6 +7,11 @@ centerline: the tool sits below the work in the view, as the operator sees it.
 G76 canned cycles are expanded into their individual passes with the same
 degressive-infeed math the G33 fallback uses, so the thread passes are
 visible even when the firmware does the looping.
+
+Programs are emitted in relative mode, so both parsers here track G90/G91
+and start from the position the ORIGIN comment names. Programs without one
+(threading, which has no absolute X reference) are drawn relative to the
+tool's start position instead.
 """
 
 import math
@@ -17,6 +22,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
+from grbl_turn.gcode import origin
 from grbl_turn.ops.passes import thread_infeeds
 
 WORD_RE = re.compile(r"([A-Z])(-?\d*\.?\d+)")
@@ -39,11 +45,10 @@ def _words(line: str) -> dict[str, list[float]]:
     return found
 
 
-def _expand_g76(w: dict, z: float, x: float) -> list[Segment]:
+def _expand_g76(w: dict, z: float, x: float, z_end: float) -> list[Segment]:
     """Approximate the passes G76 will run, from its words and the current
     (drive-line) position. Flank offset is ignored — invisibly small here."""
     try:
-        z_end = w["Z"][0]
         i_word = w["I"][0]
         first = w["J"][0]
         total = w["K"][0]
@@ -67,26 +72,48 @@ def _expand_g76(w: dict, z: float, x: float) -> list[Segment]:
     return segs
 
 
+def _start(lines: list[str]) -> tuple[float, float] | None:
+    """Program start as (z, x), from the ORIGIN comment."""
+    o = origin(lines)
+    return (o[1], o[0]) if o else None
+
+
+def _target(w: dict, pos: tuple[float, float] | None,
+            incremental: bool) -> tuple[float, float]:
+    """The (z, x) a motion word pair reaches from `pos`."""
+    base_z, base_x = pos if pos else (0.0, 0.0)
+    if incremental:
+        return (base_z + w["Z"][0] if "Z" in w else base_z,
+                base_x + w["X"][0] if "X" in w else base_x)
+    return (w["Z"][0] if "Z" in w else base_z,
+            w["X"][0] if "X" in w else base_x)
+
+
 def parse_segments(lines: list[str]) -> list[Segment]:
     segments: list[Segment] = []
     modal = 0                     # current motion mode: 0, 1, or 33
-    pos: tuple[float, float] | None = None    # (z, x)
+    incremental = False
+    pos = _start(lines)           # (z, x)
     for line in lines:
         w = _words(line)
         if not w:
             continue
         gs = w.get("G", [])
+        if 90 in gs:
+            incremental = False
+        if 91 in gs:
+            incremental = True
         if 76 in gs:
-            if pos is not None:
-                segments += _expand_g76(w, pos[0], pos[1])
+            if pos is not None and "Z" in w:
+                z_end = pos[0] + w["Z"][0] if incremental else w["Z"][0]
+                segments += _expand_g76(w, pos[0], pos[1], z_end)
             continue
         for g in gs:
             if g in (0, 1, 33):
                 modal = int(g)
         if "X" not in w and "Z" not in w:
             continue
-        z = w["Z"][0] if "Z" in w else (pos[0] if pos else 0.0)
-        x = w["X"][0] if "X" in w else (pos[1] if pos else 0.0)
+        z, x = _target(w, pos, incremental)
         if pos is not None and (z, x) != pos:
             segments.append(Segment(pos[0], pos[1], z, x, rapid=modal == 0))
         pos = (z, x)
@@ -106,7 +133,8 @@ def line_durations(lines: list[str]) -> list[float]:
     streamer acks (it drops blank lines the same way)."""
     out: list[float] = []
     modal = 0
-    pos: tuple[float, float] | None = None
+    incremental = False
+    pos = _start(lines)
     feed = 60.0                  # units/min; placeholder until an F arrives
     rapid = EST_RAPID_MM
     pitch = 1.0                  # units/rev; placeholder until a G33 K
@@ -117,13 +145,18 @@ def line_durations(lines: list[str]) -> list[float]:
             rapid = EST_RAPID_INCH
         if 21 in gs:
             rapid = EST_RAPID_MM
+        if 90 in gs:
+            incremental = False
+        if 91 in gs:
+            incremental = True
         if "F" in w:
             feed = w["F"][0]
         seconds = 0.0
         if 76 in gs:             # whole canned cycle on one line
             thread_feed = w.get("P", [pitch])[0] * EST_THREAD_RPM
-            if pos is not None:
-                for s in _expand_g76(w, pos[0], pos[1]):
+            if pos is not None and "Z" in w:
+                z_end = pos[0] + w["Z"][0] if incremental else w["Z"][0]
+                for s in _expand_g76(w, pos[0], pos[1], z_end):
                     d = math.hypot(s.z1 - s.z0, s.x1 - s.x0)
                     seconds += 60.0 * d / (rapid if s.rapid
                                            else max(thread_feed, 1e-9))
@@ -133,8 +166,7 @@ def line_durations(lines: list[str]) -> list[float]:
             if g in (0, 1, 33):
                 modal = int(g)
         if ("X" in w or "Z" in w) and pos is not None:
-            z = w["Z"][0] if "Z" in w else pos[0]
-            x = w["X"][0] if "X" in w else pos[1]
+            z, x = _target(w, pos, incremental)
             if modal == 33:
                 if "K" in w:
                     pitch = w["K"][0]
@@ -144,7 +176,7 @@ def line_durations(lines: list[str]) -> list[float]:
             seconds = 60.0 * math.hypot(z - pos[0], x - pos[1]) / rate
             pos = (z, x)
         elif "X" in w or "Z" in w:
-            pos = (w.get("Z", [0.0])[0], w.get("X", [0.0])[0])
+            pos = _target(w, None, incremental)
         out.append(seconds)
     return out
 

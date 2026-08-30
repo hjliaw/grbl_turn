@@ -1,0 +1,159 @@
+G76 Threading Cycle — Firmware Behaviour Notes
+===============================================
+Written 2026-08-28, updated 2026-08-29 when grbl_turn moved to fully
+relative output.  Sources read directly:
+
+  eznc      ~/cnc/eznc/eznc/grbl_in_eznc/gcode.cpp, motion_control.cpp,
+            g76_plan.txt
+  grblHAL   https://github.com/grblHAL/core/blob/master/gcode.c (master,
+            fetched 2026-08-28)
+  LinuxCNC  https://linuxcnc.org/docs/html/gcode/g-code.html#gcode:g76
+
+eznc implements the LinuxCNC dialect from scratch on top of its own G33
+spindle-sync primitive (parse-then-execute, modelled on mc_probe_cycle).
+It is NOT a port of grblHAL's cycle, and it differs in several places.
+
+CONTEXT: grbl_turn now emits G91 for every operation.  Nothing depends on
+work offsets; the operator touches off on the reference surface named in
+the program's ORIGIN comment and runs.  Every program returns to that
+start position — except the G76 threading path, for the reason below.
+
+
+ENDING POSITION OF THE CYCLE
+-----------------------------
+  LinuxCNC   drive-line X, Z at the Z word.  "The final position of the
+             tool will be at the end of the drive line."
+  grblHAL    same: drive-line X, Z at the Z word.
+  eznc       drive-line X, Z BACK AT THE START.
+
+eznc: motion_control.cpp:711-715 (per pass) and again at the normal exit,
+:722-726, with the comment "back to the start position so gc_state.position
+stays truthful".  Both X and Z return.
+
+X ends on the drive line in ALL THREE.  Z does not agree.
+
+THIS IS WHY THE THREADING PROGRAM STOPS ON THE G76 LINE.  In relative mode
+a move after the cycle would have to know where Z ended, and that answer is
+firmware-dependent, so any trailing retract would be wrong on one of the
+two.  threading_op emits the cycle, a comment, and M2.  The tool is left
+clear of the work in X either way, so this is safe — it just means the
+operator re-touches the crest before running the program again.
+
+The G33 fallback has no such problem: it knows where every move ends, so
+it returns to the start position and can be re-run unchanged.
+
+
+G76 UNDER G91 (INCREMENTAL)
+----------------------------
+Both firmwares convert the Z word by distance mode, because the generic
+axis-word conversion runs BEFORE the motion-mode switch reads it:
+
+  grblHAL   gcode.c:3266   values.xyz[idx] += gc_state.position[idx]
+            gcode.c:3391   thread.z_final = gc_block.values.xyz[Z_AXIS]
+  eznc      gcode.cpp:837  (same conversion, "Incremental mode" branch)
+            gcode.cpp:1459 g76.z_end = gc_block.values.xyz[Z_AXIS]
+
+So under G91 the Z word is a DISTANCE, and grbl_turn emits it as one: the
+delta from wherever the lead-in rapid left the tool to the end of the
+thread (lead-in + thread length).  Verified on both code paths; both
+compute the same absolute z_final.  Pinned by
+tests/test_gcode_ops.py::test_thread_g76_z_word_follows_the_lead_in.
+
+The failure mode to avoid is emitting an ABSOLUTE Z under G91 — that
+threads the full length from the current Z instead of to it.  Neither
+firmware guards against it: there is no distance-mode check anywhere in
+either threading validation block, so it is accepted silently.
+
+I / J / K / P / R / Q / H are never distance-mode converted — they are
+relative magnitudes by definition.  Inch mode scales P, I, J, K, E
+(grblHAL gcode.c:3432-3437, eznc gcode.cpp:979-981); distance mode never
+touches them.
+
+LinuxCNC does not document G76 under G91 at all.  If these programs are
+ever run there, check this first.
+
+
+DIVERGENCES BETWEEN THE TWO FIRMWARES
+--------------------------------------
+X word on the G76 line
+  grblHAL   means a TAPER: thread.main_taper_height = X - offset, and it
+            rescales the pitch (gcode.c:3446-3450).  Only X and Z accepted.
+  eznc      HARD ERROR: axis_words & ~bit(Z_AXIS) -> STATUS_GCODE_AXIS_
+            WORDS_EXIST (gcode.cpp:946).
+  -> grbl_turn emits no X on the G76 line, so it is fine on both.  It also
+     means grblHAL's taper-by-X feature is unavailable on eznc.
+
+Required words
+  grblHAL   Z, plus at least one of I/J/K/P (gcode.c:3406), then range
+            checks effectively require all of them anyway.
+  eznc      I, J and K all required outright (gcode.cpp:939-942).
+  -> grbl_turn emits all of them.
+
+Diameter mode
+  grblHAL   HALVES I, J and K when diameter mode is active:
+              if(gc_block.modal.diameter_mode) {
+                  thread.peak /= 2; thread.initial_depth /= 2;
+                  thread.depth /= 2; }
+  eznc      no diameter mode at all; nothing halves I/J/K.
+  -> OPEN BUG in grbl_turn: threading_op emits I/J/K as RADIAL values
+     through plain fmt(), without machine.x_word().  On a machine with
+     x_words_are_diameter=True the thread is cut to HALF the intended depth
+     with half the intended clearance.  Not yet fixed.  eznc unaffected.
+     (Note the X *moves* are correct — Program applies x_word to those.
+     Only the words inside the G76 line are missed.)
+
+Validation limits (eznc is stricter)
+  eznc      K >= J                        gcode.cpp:949-951
+            K * tan|Q| < P                gcode.cpp:961-964
+            |Q| < 80 deg                  gcode.cpp:959
+            H <= 50 (also catches < 0)    gcode.cpp:957
+            R in [1.0, 2.0], default 1.0  gcode.cpp:953-958
+            E and L must appear together  gcode.cpp:968-975
+  grblHAL   K > J (rejects K == J), R >= 1.0, no Q or H limits.
+  -> Note K == J: accepted by eznc, rejected by grblHAL.
+
+
+OPEN GAP IN grbl_turn
+----------------------
+The G76 path emits J and K straight from the form fields with no check
+that J <= K (grbl_turn/ops/threading_op.py, the machine.has_g76 branch).
+thread_infeeds() validates 0 < first_depth <= total_depth, but that only
+runs on the G33 fallback path and in the preview's _expand_g76, which
+clamps with min(first, total) and so never trips.
+
+Set "First pass depth (J)" above "Total depth (K)" and the app happily
+produces a program BOTH firmwares reject at runtime — after the operator
+has already set up the job.
+
+Fix: validate J <= K in _generate() before the emitter branch.  NOT DONE.
+
+
+BUG FOUND IN eznc: STALE MODAL FEED LEAKS INTO G76 RAPIDS
+----------------------------------------------------------
+gcode.cpp:1470     g76.traverse_feed = gc_block.values.f;
+gcode.cpp:628      values.f = gc_state.feed_rate;   // when no F word on
+                                                    // the line
+motion_control.cpp:569   pl_data->feed_rate = g76->traverse_feed;
+motion_control.cpp g76_move():
+       if ((pitch > 0.0) || (pl_data->feed_rate > 0.0))
+               pl_data->condition &= ~(PL_COND_FLAG_RAPID_MOTION);
+       else    pl_data->condition |= PL_COND_FLAG_RAPID_MOTION;
+
+A G76 line with no F word inherits the LAST MODAL FEED, so every
+positioning move in the cycle — Z pre-position, X plunge, X retract, Z
+return, on every pass — runs as a feed move at that stale rate instead of
+a rapid.
+
+This contradicts the code's own comment at gcode.cpp:1468 ("F on the G76
+line (this line only, not the modal feed)") and g76_plan.txt ("Omitted =
+rapids").
+
+Reachable from grbl_turn: the threading programs emit no F at all, but the
+turning / facing / boring / parting / taper programs all emit F3 etc., and
+grbl's modal feed survives between programs on one serial session.  Run a
+turning op, then a thread, and the cycle crawls.
+
+Fix: only take values.f when the F word was actually present on the line —
+    if (bit_istrue(value_words, bit(WORD_F))) g76.traverse_feed = ...
+    else                                      g76.traverse_feed = 0.0;
+NOT DONE.

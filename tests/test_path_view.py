@@ -50,8 +50,9 @@ def test_g76_expands_to_thread_passes():
     assert all(s.z1 == pytest.approx(-0.5) for s in feeds)
     depths = [s.x1 for s in feeds]
     assert all(b <= a for a, b in zip(depths, depths[1:]))
-    # final passes at full depth: major radius - 0.6134 * pitch
-    assert depths[-1] == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
+    # X is relative to wherever the tool starts (X0 in the plot = the crest
+    # the operator touched off on): full depth sits 0.6134 * pitch below it
+    assert depths[-1] == pytest.approx(-0.6134 * 0.05, abs=1e-4)
 
 
 def test_g33_fallback_draws_same_shape():
@@ -61,7 +62,32 @@ def test_g33_fallback_draws_same_shape():
     lines = op.generate(defaults(op), machine, Units.INCH)
     feeds = [s for s in parse_segments(lines) if not s.rapid]
     assert len(feeds) >= 5
-    assert feeds[-1].x1 == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
+    assert all(s.z1 == pytest.approx(-0.5) for s in feeds)
+    assert feeds[-1].x1 == pytest.approx(-0.6134 * 0.05, abs=1e-4)
+
+
+def test_relative_program_redrawn_in_absolute_coordinates():
+    # the ORIGIN comment is what lets the plot show real diameters even
+    # though every move in the program is a delta
+    from grbl_turn.units import Units
+    op = BY_KEY["ext_turning"]
+    p = defaults(op) | {"start_dia": 0.5, "end_dia": 0.4, "length": 0.75}
+    segs = parse_segments(op.generate(p, MACHINE, Units.INCH))
+    assert segs[0].x0 == pytest.approx(0.25)      # touch-off radius
+    assert segs[0].z0 == pytest.approx(0.0)       # the face
+    ext = segment_extents(segs)
+    assert ext["X"][0] == pytest.approx(0.20)     # finished radius
+    assert ext["Z"][0] == pytest.approx(-0.75)
+
+
+def test_relative_program_ends_where_it_started():
+    from grbl_turn.units import Units
+    for key in ("ext_turning", "ext_facing", "int_boring", "int_parting",
+                "ext_taper", "int_taper"):
+        op = BY_KEY[key]
+        segs = parse_segments(op.generate(defaults(op), MACHINE, Units.INCH))
+        assert (segs[-1].z1, segs[-1].x1) == pytest.approx(
+            (segs[0].z0, segs[0].x0)), key
 
 
 def test_g76_extents_include_thread_depth():
@@ -70,9 +96,10 @@ def test_g76_extents_include_thread_depth():
     op = BY_KEY["ext_thread"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     ext = segment_extents(parse_segments(lines))
-    # tool must reach the minor radius: major 0.25 - 0.6134 * pitch 0.05
-    assert ext["X"][0] == pytest.approx(0.25 - 0.6134 * 0.05, abs=1e-4)
-    # word-scanning only sees the drive line — the very bug this guards
+    # tool must reach full depth below the crest: 0.6134 x pitch
+    assert ext["X"][0] == pytest.approx(-0.6134 * 0.05, abs=1e-4)
+    # word-scanning only sees the hop out to the drive line — the depth
+    # hides in I/J/K, the very bug this guards
     assert extents(lines)["X"][0] > ext["X"][0]
 
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from grbl_turn.gcode import extents
+from grbl_turn.gcode import extents, origin, positions
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops import BY_KEY, REGISTRY
 from grbl_turn.ops.taper import MODE_TRIM
@@ -23,13 +23,23 @@ def body(lines):
     return [l for l in lines if not l.startswith("(")]
 
 
+def ends_at(lines, prefix):
+    """Absolute (x, z) each line starting with `prefix` leaves the tool at."""
+    return [(x, z) for l, x, z in positions(lines) if l.startswith(prefix)]
+
+
 @pytest.mark.parametrize("units", [Units.INCH, Units.MM])
 @pytest.mark.parametrize("op", REGISTRY, ids=lambda op: op.key)
 def test_all_ops_generate_with_defaults(op, units):
     lines = op.generate(defaults(op), MACHINE, units)
     b = body(lines)
-    assert b[0] == f"{units.gcode} G18 G90 G94"
+    assert b[0] == f"{units.gcode} G18 G91 G94"
     assert b[-1] == "M2"
+    # every move is relative: nothing may switch back to absolute, and the
+    # header must tell the operator where to start
+    assert not any("G90" in l for l in b)
+    assert any(l.startswith("(ORIGIN ") or l.startswith("(START ")
+               for l in lines)
     # no motion before the units/plane line, spindle never started by default
     assert not any(l.startswith("M3") for l in b)
     # GRBL rejects nested parentheses inside comments
@@ -47,7 +57,10 @@ def test_turning_passes_and_extents():
     # radius mode: deepest X word is the final radius
     assert ext["X"][0] == pytest.approx(0.2)
     assert ext["Z"][0] == pytest.approx(-0.75)
-    assert "G1 Z-0.7500 F3" in "\n".join(lines)
+    # each cut is one relative move: clearance in front of the face, then
+    # the full length
+    assert "G1 Z-0.7900 F3" in "\n".join(lines)
+    assert all(z == pytest.approx(-0.75) for _, z in ends_at(lines, "G1 Z"))
 
 
 def test_turning_diameter_mode():
@@ -86,9 +99,9 @@ def test_parting_pecks():
     op = BY_KEY["int_parting"]
     p = defaults(op) | {"peck": 0.05, "work_dia": 0.75, "end_dia": 0.0}
     lines = op.generate(p, MACHINE, Units.INCH)
-    plunges = [l for l in lines if l.startswith("G1 X")]
+    plunges = ends_at(lines, "G1 X")
     assert len(plunges) == 8            # 0.375 radius / 0.05 peck
-    assert plunges[-1].startswith("G1 X0.0000")
+    assert plunges[-1][0] == pytest.approx(0.0)      # parts off at center
 
 
 def test_taper_finish_pass_moves_both_axes():
@@ -106,25 +119,31 @@ def test_taper_trim_progressive_passes():
     # defaults: existing 0.500 -> target 0.480 at face, 0.010 radial skin;
     # doc 0.020 covers it in a single full-length pass
     lines = op.generate(p, MACHINE, Units.INCH)
-    taper_moves = [l for l in lines
-                   if l.startswith("G1") and "X" in l and "Z-" in l]
-    assert len(taper_moves) == 1
-    plunges = [l for l in lines
-               if l.startswith("G1 Z-") and "X" not in l]
-    assert not plunges             # no straight roughing
+
+    def taper_ends(lines):
+        return [(x, z) for l, x, z in positions(lines)
+                if l.startswith("G1") and "X" in l and "Z" in l]
+
+    def roughing_cuts(lines):
+        # straight roughing feeds into the work; the taper passes' Z-only
+        # feed only closes the clearance gap back to the face
+        return [(x, z) for l, x, z in positions(lines)
+                if l.startswith("G1 Z") and "X" not in l and z < -1e-9]
+
+    assert len(taper_ends(lines)) == 1
+    assert not roughing_cuts(lines)
     end_r = p["target_dia"] / 2 + p["length"] * math.tan(
         math.radians(p["angle"]))
-    assert f"X{end_r:.4f}" in taper_moves[0]
+    assert taper_ends(lines)[0][0] == pytest.approx(end_r, abs=1e-4)
     # stock diameter is irrelevant in trim mode
     assert op.generate(p | {"start_dia": 9.9}, MACHINE, Units.INCH) == lines
 
     # a smaller doc steps down in parallel passes, ending on the target
     lines = op.generate(p | {"doc": 0.004}, MACHINE, Units.INCH)
-    taper_moves = [l for l in lines
-                   if l.startswith("G1") and "X" in l and "Z-" in l]
-    assert len(taper_moves) == 3   # 0.010 skin / 0.004 doc
-    assert f"X{end_r:.4f}" in taper_moves[-1]
-    assert f"X{end_r + 0.006:.4f}" in taper_moves[0]
+    ends = taper_ends(lines)
+    assert len(ends) == 3          # 0.010 skin / 0.004 doc
+    assert ends[-1][0] == pytest.approx(end_r, abs=1e-4)
+    assert ends[0][0] == pytest.approx(end_r + 0.006, abs=1e-4)
 
     # a target that leaves the existing surface uncut is an error
     with pytest.raises(ValueError):
@@ -155,6 +174,33 @@ def test_thread_g76_words():
     assert "I-0.0200" in g76[0]     # external: peak below drive line
     assert "R1.5" in g76[0]         # default depth degression
     assert "Q29.5" in g76[0]
+    # Z is a distance like any other axis word under G91: the default
+    # lead-in of 2x pitch is already travelled, so the cycle's Z spans the
+    # lead-in plus the thread
+    assert "G0 Z0.1000" in lines
+    assert "Z-0.6000" in g76[0]
+    # external starts on the crest: one hop out to the drive line by abs(I),
+    # and no other X motion — the cycle infeeds from there
+    assert [l for l in body(lines) if "X" in l] == ["G0 X0.0200"]
+    assert body(lines).index("G0 X0.0200") < body(lines).index(g76[0])
+
+
+def test_thread_g76_z_word_follows_the_lead_in():
+    # the Z word is relative, so it tracks where the lead-in rapid left the
+    # tool rather than repeating the thread length blindly
+    op = BY_KEY["ext_thread"]
+    lines = op.generate(defaults(op) | {"lead_in": 0.0}, MACHINE, Units.INCH)
+    assert not any(l.startswith("G0 Z") for l in lines)   # already at the face
+    g76 = [l for l in lines if l.startswith("G76")][0]
+    assert "Z-0.5000" in g76        # no lead-in: just the thread
+
+
+def test_thread_internal_g76_has_no_x_move():
+    # internal is parked clear of the crest already: nothing to back out of
+    op = BY_KEY["int_thread"]
+    lines = op.generate(defaults(op) | {"total_depth": 0.027}, MACHINE,
+                        Units.INCH)
+    assert not any("X" in l for l in body(lines))
 
 
 def test_thread_g33_fallback():
@@ -165,23 +211,53 @@ def test_thread_g33_fallback():
     assert len(g33) > 3
     assert all("K0.0500" in l for l in g33)
     assert not any(l.startswith("G76") for l in lines)
+    # every synced pass runs to the same absolute Z
+    assert all(z == pytest.approx(-0.5) for _, z in ends_at(lines, "G33"))
 
 
 def test_thread_internal_direction():
     op = BY_KEY["int_thread"]
     machine = MachineProfile(has_g76=False)
-    p = defaults(op) | {"dia": 0.4056}
-    lines = op.generate(p, machine, Units.INCH)
+    lines = op.generate(defaults(op), machine, Units.INCH)
+    # X is measured from the start position; internal cuts outward into the
+    # bore wall, past the crest a clearance away
+    assert extents(lines)["X"][1] > 0.02
+
+
+def test_thread_external_direction():
+    op = BY_KEY["ext_thread"]
+    machine = MachineProfile(has_g76=False)
+    lines = op.generate(defaults(op), machine, Units.INCH)
+    # X is measured from the crest: infeeds go negative, and nothing reaches
+    # further out than the drive line
     ext = extents(lines)
-    # internal threading cuts outward from the bore
-    assert ext["X"][1] > 0.4056 / 2
+    assert ext["X"][0] == pytest.approx(-0.6134 * 0.05, abs=1e-4)
+    assert ext["X"][1] == pytest.approx(0.02)
+
+
+def test_thread_g33_returns_to_the_start():
+    # the fallback knows where it ends, so the program is re-runnable
+    op = BY_KEY["ext_thread"]
+    lines = op.generate(defaults(op), MachineProfile(has_g76=False),
+                        Units.INCH)
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
+
+
+def test_thread_g76_stops_on_the_cycle():
+    # where G76 leaves Z is firmware-dependent, so no relative move may
+    # follow it
+    op = BY_KEY["ext_thread"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    b = body(lines)
+    assert b[-1] == "M2"
+    assert b[-2].startswith("G76")
 
 
 def test_thread_metric_pitch():
     # mm mode: pitch_val is mm/rev, used verbatim
     op = BY_KEY["ext_thread"]
-    p = defaults(op) | {"pitch_val": 1.5,
-                        "dia": 10.0, "first_depth": 0.1,
+    p = defaults(op) | {"pitch_val": 1.5, "first_depth": 0.1,
                         "clearance": 0.5, "length": 12.0}
     lines = op.generate(p, MACHINE, Units.MM)
     g76 = [l for l in lines if l.startswith("G76")][0]

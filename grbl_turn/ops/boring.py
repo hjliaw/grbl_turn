@@ -1,13 +1,15 @@
 """Boring: enlarge an existing hole. Same pass loop as turning but X grows
 and the retract goes inward (toward center) to clear the bore wall."""
 
-from grbl_turn.gcode import footer, header
+from grbl_turn.gcode import Program
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import turning_passes
-from grbl_turn.units import Units, fmt
+from grbl_turn.units import Units
 
 FIELDS = [
+    Field("length", "Bore depth", "len", 0.500,
+          group="Z (bed/leadscrew)"),
     Field("start_dia", "Existing bore diameter", "dia", 0.250,
           group="X (cross-slide)"),
     Field("end_dia", "Target bore diameter", "dia", 0.375,
@@ -16,8 +18,6 @@ FIELDS = [
           group="X (cross-slide)"),
     Field("finish_allow", "Finish allowance, radial", "len", 0.003,
           group="X (cross-slide)", minimum=0.0),
-    Field("length", "Bore depth", "len", 0.500,
-          group="Z (bed/leadscrew)"),
     Field("feed", "Feed", "feed", 2.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.020, group="Cutting",
           tooltip="Radial pull-back off the wall before retracting in Z"),
@@ -32,22 +32,20 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
     clear = p["clearance"]
     if start_r - clear <= 0:
         raise ValueError("clearance too large for the existing bore")
-    safe_x = machine.x_word(start_r - clear)
-    z_clear = clear
 
-    lines = header(
+    prog = Program(machine, units, origin_r=start_r,
+                   start_note="touch off on the bore wall at the face")
+    prog.header(
         "Boring",
         [f"bore dia {p['start_dia']} -> {p['end_dia']}, depth {p['length']}",
-         f"doc {p['doc']} radial, finish {p['finish_allow']}, feed {p['feed']}"],
-        units)
-    lines.append(f"G0 X{fmt(safe_x, units)} Z{fmt(z_clear, units)}")
+         f"doc {p['doc']} radial, finish {p['finish_allow']}, feed {p['feed']}"])
+    prog.rapid(x=start_r - clear, z=clear)
     for r in turning_passes(start_r, end_r, p["doc"], p["finish_allow"]):
-        lines.append(f"G0 X{fmt(machine.x_word(r), units)}")
-        lines.append(f"G1 Z{fmt(-p['length'], units)} F{p['feed']:g}")
-        lines.append(f"G0 X{fmt(machine.x_word(r - clear), units)}")
-        lines.append(f"G0 Z{fmt(z_clear, units)}")
-    lines += footer(safe_x, z_clear, units)
-    return lines
+        prog.rapid(x=r)
+        prog.feed(z=-p["length"], f=p["feed"])
+        prog.rapid(x=r - clear)
+        prog.rapid(z=clear)
+    return prog.end()
 
 
 OP = Operation("int_boring", "Boring", "int_boring.svg", "int_boring.svg",

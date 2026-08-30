@@ -5,11 +5,11 @@ to the cone, then a finish pass follows the taper itself."""
 
 import math
 
-from grbl_turn.gcode import footer, header
+from grbl_turn.gcode import Program
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import turning_passes
-from grbl_turn.units import Units, fmt
+from grbl_turn.units import Units
 
 # half angles (deg per side) from the standard taper-per-foot values
 MORSE_ANGLES = {"MT0": 1.4908, "MT1": 1.4287, "MT2": 1.4307, "MT3": 1.4377}
@@ -62,9 +62,9 @@ def _fields(internal: bool) -> list[Field]:
               tooltip="Trim: progressive full-length passes along an "
                       "existing tapered surface, stepping from its "
                       "measured diameter at the face to the target"),
-    ] + x_fields + [
         Field("length", "Taper length (L)", "len", 1.000,
               group="Z (bed/leadscrew)"),
+    ] + x_fields + [
         Field("doc", "Depth per pass, radial", "len", 0.020,
               group="X (cross-slide)"),
         Field("feed", "Feed", "feed", 3.0, group="Cutting"),
@@ -112,16 +112,14 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
             warns.append("WARNING: taper undercuts the existing bore "
                          f"(dia {end_r * 2:.4f} < {p['start_dia']:g}) at depth")
         retract_sign = -1.0
-        safe_x = machine.x_word(
-            max((end_r - skin if trim else start_r) - clear, 0.0))
+        safe_r = max((end_r - skin if trim else start_r) - clear, 0.0)
     else:
         end_r = final_r + delta     # widens toward depth
         if not trim and end_r > start_r + 1e-9:
             warns.append("WARNING: taper exceeds the stock diameter "
                          f"(dia {end_r * 2:.4f} > {p['start_dia']:g}) at depth")
         retract_sign = 1.0
-        safe_x = machine.x_word(
-            (end_r + skin if trim else max(start_r, end_r)) + clear)
+        safe_r = (end_r + skin if trim else max(start_r, end_r)) + clear
 
     # z on the cone where radius == r
     def cone_z(r: float) -> float:
@@ -131,37 +129,38 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     mode = (f"trim in {len(offsets)} passes, doc {p['doc']:g} radial"
             if trim else
             f"straight roughing at doc {p['doc']} radial + finish")
-    lines = header(
+    # the operator touches off on the surface that exists before the cut:
+    # the stock/pilot bore when cutting fresh, the taper itself when trimming
+    surface = ("the existing taper at the face" if trim else
+               "the pilot bore wall at the face" if internal else
+               "the stock OD at the face")
+    prog = Program(machine, units, origin_r=face_r if trim else start_r,
+                   start_note=f"touch off on {surface}")
+    prog.header(
         title,
         [f"dia {final_r * 2:g} at face, {angle:g} deg/side -> "
          f"dia {end_r * 2:.4f} at Z-{length:g}",
-         f"{mode}, feed {p['feed']}"] + warns,
-        units)
-    lines.append(f"G0 X{fmt(safe_x, units)} Z{fmt(clear, units)}")
+         f"{mode}, feed {p['feed']}"] + warns)
+    prog.rapid(x=safe_r, z=clear)
 
     if not trim:
         # roughing: straight passes, each stopping where it meets the cone
         for r in turning_passes(p["start_dia"] / 2.0, face_r, p["doc"]):
             z_stop = max(cone_z(r), -length)
-            lines.append(f"G0 X{fmt(machine.x_word(r), units)}")
-            lines.append(f"G1 Z{fmt(z_stop, units)} F{p['feed']:g}")
-            lines.append(f"G0 X{fmt(machine.x_word(r + retract_sign * clear), units)}")
-            lines.append(f"G0 Z{fmt(clear, units)}")
+            prog.rapid(x=r)
+            prog.feed(z=z_stop, f=p["feed"])
+            prog.rapid(x=r + retract_sign * clear)
+            prog.rapid(z=clear)
 
     # passes along the taper, face to depth; cut-from-stock has one finish
     # pass on the cone, trim steps parallel passes down onto the target
     for off in offsets:
-        lines.append(
-            f"G0 X{fmt(machine.x_word(final_r + retract_sign * off), units)}")
-        lines.append(f"G1 Z{fmt(0.0, units)} F{p['feed']:g}")
-        lines.append(
-            f"G1 X{fmt(machine.x_word(end_r + retract_sign * off), units)} "
-            f"Z{fmt(-length, units)} F{p['feed']:g}")
-        lines.append(
-            f"G0 X{fmt(machine.x_word(end_r + retract_sign * (off + clear)), units)}")
-        lines.append(f"G0 Z{fmt(clear, units)}")
-    lines += footer(safe_x, clear, units)
-    return lines
+        prog.rapid(x=final_r + retract_sign * off)
+        prog.feed(z=0.0, f=p["feed"])
+        prog.feed(x=end_r + retract_sign * off, z=-length, f=p["feed"])
+        prog.rapid(x=end_r + retract_sign * (off + clear))
+        prog.rapid(z=clear)
+    return prog.end()
 
 
 def generate_ext(p, machine, units):

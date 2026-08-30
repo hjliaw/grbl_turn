@@ -1,7 +1,8 @@
 """In-process fake GRBL controller, used by the tests and `grbl-turn --sim`.
 
 Responds like a friendly GRBL 1.1: banner on open/reset, 'ok' per line,
-status reports on '?', naive X/Z position tracking from G0/G1/G33 words,
+status reports on '?', naive X/Z position tracking from G0/G1/G33 words
+(following G90/G91, since generated programs are relative),
 Hold/Run states for '!' and '~'. Optionally answers error:N on lines
 matching an injected predicate (for tests)."""
 
@@ -13,6 +14,7 @@ from grbl_turn.comms.transport import Transport
 
 BANNER = b"\r\nGrbl 1.1h ['$' for help]\r\n"
 _WORD = re.compile(rb"([XZ])(-?\d+\.?\d*)")
+_COMMENT = re.compile(rb"\(.*?\)")
 
 
 class SimTransport(Transport):
@@ -24,6 +26,7 @@ class SimTransport(Transport):
         self.report_inches = report_inches
         self.out = bytearray()
         self.pos = {"X": 0.0, "Z": 0.0}
+        self.incremental = False      # G90/G91, like the real firmware
         self.state = "Idle"
         self._inbuf = b""
         self._open = False
@@ -81,8 +84,16 @@ class SimTransport(Transport):
                 self.out += f"$13={int(self.report_inches)}\r\n".encode()
             self.out += b"ok\r\n"
             return
+        line = _COMMENT.sub(b"", line)   # real GRBL ignores comment text
+        if b"G90" in line:
+            self.incremental = False
+        if b"G91" in line:
+            self.incremental = True
         for axis, num in _WORD.findall(line):
-            self.pos[axis.decode()] = float(num)
+            axis = axis.decode()
+            value = float(num)
+            self.pos[axis] = self.pos[axis] + value if self.incremental \
+                else value
         self.out += b"ok\r\n"
 
     def _status_report(self) -> None:

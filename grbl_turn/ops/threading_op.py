@@ -9,7 +9,7 @@ Two emitters, selected by the machine profile:
 Both use the same degressive infeed math from passes.thread_infeeds().
 """
 
-from grbl_turn.gcode import footer, header
+from grbl_turn.gcode import Program
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import Field, Operation
 from grbl_turn.ops.passes import flank_offset, thread_infeeds
@@ -21,16 +21,16 @@ INT_DEPTH_FACTOR = 0.5413
 
 
 def _fields(internal: bool) -> list[Field]:
-    dia_field = (
-        Field("dia", "Bore diameter (D)", "dia", 0.4056,
-              group="X (cross-slide)",
-              tooltip="Bore to the thread minor diameter before threading")
-        if internal else
-        Field("dia", "Major diameter (D)", "dia", 0.500,
-              group="X (cross-slide)")
-    )
     return [
-        dia_field,
+        Field("pitch_val", "Pitch (P)", "pitch", 20.0, group="Z (bed/leadscrew)",
+              default_mm=1.5,
+              tooltip="Inch mode: TPI; mm mode: mm/rev"),
+        Field("length", "Thread length (Z)", "len", 0.500,
+              group="Z (bed/leadscrew)"),
+        Field("lead_in", "Lead-in", "len", 0.0,
+              group="Z (bed/leadscrew)", minimum=0.0,
+              tooltip="Sync-up distance in front of the face; auto = 2x pitch",
+              auto=lambda p, u: 2.0 * _pitch(p, u)),
         Field("total_depth", "Total depth (K)", "len", 0.0,
               group="X (cross-slide)", minimum=0.0,
               tooltip="Radial thread depth; auto = 0.6134x pitch (ext) or "
@@ -43,20 +43,14 @@ def _fields(internal: bool) -> list[Field]:
               group="X (cross-slide)", minimum=1.0, maximum=2.0,
               tooltip="G76 R word: 1.0 = same depth every pass, "
                       "2.0 = constant chip area (passes taper off)"),
-        Field("spring", "Spring passes (H)", "int", 1, group="X (cross-slide)",
+        Field("clearance", "Clearance (I)", "len", 0.020,
+              group="X (cross-slide)",
+              tooltip="Radial gap between the tool and the crest at the "
+                      "start of the program"),
+        Field("spring", "Spring passes (H)", "int", 1, group="Cutting",
               minimum=0, maximum=9),
-        Field("pitch_val", "Pitch (P)", "pitch", 20.0, group="Z (bed/leadscrew)",
-              default_mm=1.5,
-              tooltip="Inch mode: TPI; mm mode: mm/rev"),
-        Field("length", "Thread length (Z)", "len", 0.500,
-              group="Z (bed/leadscrew)"),
-        Field("lead_in", "Lead-in", "len", 0.0,
-              group="Z (bed/leadscrew)", minimum=0.0,
-              tooltip="Sync-up distance in front of the face; auto = 2x pitch",
-              auto=lambda p, u: 2.0 * _pitch(p, u)),
         Field("compound", "Compound angle (Q)", "choice", "29.5", group="Cutting",
               choices=["0", "29.5", "30"], unit="deg"),
-        Field("clearance", "Clearance (I)", "len", 0.020, group="Cutting"),
     ]
 
 
@@ -78,44 +72,51 @@ def _generate(p: dict, machine: MachineProfile, units: Units,
     lead_in = p["lead_in"]   # 0 is honored: sync-up starts at the face
     clear = p["clearance"]
     angle = float(p["compound"])
-    r = p["dia"] / 2.0                       # major radius (ext) / minor (int)
     inward = -1.0 if internal else 1.0       # retract direction off the thread
-    drive_r = r + inward * clear             # cycle start / retract radius
-    if internal and drive_r <= 0:
-        raise ValueError("clearance too large for the bore")
     z_end = -p["length"]
+
+    # No absolute X exists here: the thread's diameter is never asked for, so
+    # X is measured from wherever the operator parks the tool. External starts
+    # on the crest and backs out to the drive line; internal starts on the
+    # drive line already, a clearance inside the crest.
+    x_drive = 0.0 if internal else clear
+    x_peak = clear if internal else 0.0
 
     title = "Internal threading" if internal else "External threading"
     kind = "mm/rev" if units is Units.MM else "TPI"
-    lines = header(
+    note = (f"with the tool {p['clearance']} clear of the crest at the face"
+            if internal else "with the tool touching the crest at the face")
+    prog = Program(machine, units, origin_r=None, start_note=note)
+    prog.header(
         title,
-        [f"dia {p['dia']}, pitch {p['pitch_val']:g} {kind}, length {p['length']}",
+        [f"pitch {p['pitch_val']:g} {kind}, length {p['length']}",
          f"depth {depth:.4f} radial, first {p['first_depth']}, "
          f"compound {angle:g} deg",
-         "REQUIRES spindle sync (encoder); feed hold is DEFERRED during passes"],
-        units)
-    lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)} "
-                 f"Z{fmt(lead_in, units)}")
+         "REQUIRES spindle sync (encoder); feed hold is DEFERRED during passes"])
+    prog.rapid(x=x_drive)        # crest -> drive line (external only)
+    prog.rapid(z=lead_in)
 
     if machine.has_g76:
-        # I: thread peak offset from the drive line (negative = external)
+        # I: thread peak offset from the drive line (negative = external).
+        # The Z word is a distance here like every other axis word; I/J/K are
+        # magnitudes either way. Where the cycle leaves Z afterwards differs
+        # between firmwares, so the program ends on the cycle.
         i_word = -inward * clear
-        lines.append(
-            f"G76 P{fmt(pitch, units)} Z{fmt(z_end, units)} "
+        prog.raw(
+            f"G76 P{fmt(pitch, units)} Z{prog.z_delta(z_end, advance=False)} "
             f"I{fmt(i_word, units)} J{fmt(p['first_depth'], units)} "
             f"R{p['degression']:g} K{fmt(depth, units)} "
             f"Q{angle:g} H{int(p['spring'])}")
-    else:
-        for d in thread_infeeds(depth, p["first_depth"], p["degression"],
-                                int(p["spring"])):
-            z_start = lead_in - flank_offset(d, angle)
-            lines.append(f"G0 Z{fmt(z_start, units)}")
-            lines.append(f"G0 X{fmt(machine.x_word(r - inward * d), units)}")
-            lines.append(f"G33 Z{fmt(z_end, units)} K{fmt(pitch, units)}")
-            lines.append(f"G0 X{fmt(machine.x_word(drive_r), units)}")
-    lines += footer(machine.x_word(drive_r),
-                    lead_in, units)
-    return lines
+        return prog.stop("G76 ends on the drive line in X; Z is left wherever "
+                         "the firmware puts it - re-touch before re-running")
+
+    for d in thread_infeeds(depth, p["first_depth"], p["degression"],
+                            int(p["spring"])):
+        prog.rapid(z=lead_in - flank_offset(d, angle))
+        prog.rapid(x=x_peak - inward * d)
+        prog.raw(f"G33 Z{prog.z_delta(z_end)} K{fmt(pitch, units)}")
+        prog.rapid(x=x_drive)
+    return prog.end()
 
 
 def generate_ext(p, machine, units):
