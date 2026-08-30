@@ -15,7 +15,7 @@ from grbl_turn import resource
 from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
-from grbl_turn.ui.numpad import TouchNumberEdit
+from grbl_turn.ui.numpad import NumPad, TouchNumberEdit
 from grbl_turn.ui.widgets import NumericCombo, TouchCombo
 from grbl_turn.units import MM_PER_INCH, Units
 
@@ -173,6 +173,20 @@ class OpPage(QWidget):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         QScroller.grabGesture(scroll.viewport(),
                               QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+
+        # Cut deeper: after a thread comes up short on a test fit, collapse
+        # the degressive schedule to one clean pass at a new target depth
+        # instead of re-running every pass that already fits (see
+        # ops/passes.thread_infeeds — first_depth == total_depth skips the
+        # degression entirely).
+        if op.is_threading:
+            cut_deeper = QPushButton("Cut deeper")
+            cut_deeper.setToolTip(
+                "Thread came up short? Sets First pass depth (J) to the "
+                "depth just cut, then asks for the new Total depth (K) — "
+                "one pass to the new depth, not the whole schedule again.")
+            cut_deeper.clicked.connect(self.on_cut_deeper)
+            left.addWidget(cut_deeper)
 
         # Generate lives outside the scroll area: always visible,
         # at the bottom of the diagram column so the form gets full height
@@ -436,6 +450,14 @@ class OpPage(QWidget):
                     raise ValueError(f"'{f.label}' is empty")
                 params[f.name] = float(text)
         return params
+
+    def on_cut_deeper(self) -> None:
+        k_widget = self.widgets["total_depth"]
+        j_widget = self.widgets["first_depth"]
+        j_widget.setText(k_widget.text())
+        text, ok = NumPad.get_value(k_widget.pad_label, k_widget.text(), self)
+        if ok:
+            k_widget.setText(text)
 
     def on_generate(self) -> None:
         try:
