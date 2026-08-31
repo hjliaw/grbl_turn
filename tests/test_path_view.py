@@ -69,35 +69,23 @@ def test_g33_fallback_draws_same_shape():
 
 def test_relative_program_redrawn_in_absolute_coordinates():
     # the ORIGIN comment is what lets the plot show real diameters even
-    # though every move in the program is a delta -- OD turning and boring
-    # have no such reference any more (they work off the touched surface,
-    # not a known diameter), so this checks an op that still has one
+    # though every move in the program is a delta -- no shipped op keeps an
+    # absolute X reference any more (every one works off a touched surface,
+    # never a known diameter), so this exercises the Program/parser
+    # machinery directly rather than through a real op
+    from grbl_turn.gcode import Program
     from grbl_turn.units import Units
-    op = BY_KEY["ext_facing"]
-    p = defaults(op) | {"work_dia": 0.75, "end_dia": 0.0,
-                        "total_depth": 0.02}
-    segs = parse_segments(op.generate(p, MACHINE, Units.INCH))
+    prog = Program(MACHINE, Units.INCH, origin_r=0.375,
+                   start_note="touch off on the stock OD at the face")
+    prog.header("Test", ["synthetic absolute-origin program"])
+    prog.rapid(x=0.415, z=0.04)
+    prog.rapid(z=0.0)
+    prog.feed(x=0.25, f=3.0)
+    segs = parse_segments(prog.end())
     assert segs[0].x0 == pytest.approx(0.375)     # touch-off radius
     assert segs[0].z0 == pytest.approx(0.0)       # the face
     ext = segment_extents(segs)
-    assert ext["X"][0] == pytest.approx(0.0)      # faces to center
-    assert ext["Z"][0] == pytest.approx(-0.02)
-
-
-def test_relative_program_ends_where_it_started():
-    # excludes ops with no absolute X reference (threading, OD turning,
-    # boring, tapers): their first move is the invisible seed for the
-    # no-origin drawing convention, not a drawn segment, so segs[0] isn't
-    # the touch point -- see test_thread_g33_returns_to_the_start /
-    # test_turning_returns_to_the_touched_od / test_boring_returns_to_the_
-    # touched_wall / test_taper_returns_to_the_touched_surface in
-    # test_gcode_ops.py for those instead
-    from grbl_turn.units import Units
-    for key in ("ext_facing", "int_parting"):
-        op = BY_KEY[key]
-        segs = parse_segments(op.generate(defaults(op), MACHINE, Units.INCH))
-        assert (segs[-1].z1, segs[-1].x1) == pytest.approx(
-            (segs[0].z0, segs[0].x0)), key
+    assert ext["X"][0] == pytest.approx(0.25)     # finished radius
 
 
 def test_g76_extents_include_thread_depth():

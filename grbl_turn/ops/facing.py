@@ -1,4 +1,11 @@
-"""Facing: remove material from the end of the stock, feeding X toward center."""
+"""Facing: remove material from the end of the stock, feeding X toward
+center.
+
+No absolute stock diameter is asked for: the operator touches off on the
+stock OD at the face, and the sweep is specified as a diameter to face
+across from there. Facing all the way to center just means entering at
+least the stock's real diameter -- sweeping a little past center is
+harmless, it only cuts air on the far side."""
 
 from grbl_turn.gcode import Program
 from grbl_turn.machine import MachineProfile
@@ -9,26 +16,29 @@ FIELDS = [
     Field("total_depth", "Total depth (Z)", "len", 0.020,
           group="Z (bed/leadscrew)", tooltip="Total material removed off the face"),
     Field("doc", "Depth per pass (Z)", "len", 0.010, group="Z (bed/leadscrew)"),
-    Field("work_dia", "Stock diameter", "dia", 0.750, group="X (cross-slide)"),
-    Field("end_dia", "End diameter", "dia", 0.0, group="X (cross-slide)",
-          minimum=0.0, tooltip="0 = face to center"),
+    Field("dia_reduction", "Diameter to face across", "dia", 0.750,
+          group="X (cross-slide)",
+          tooltip="Swept from the touched OD; enter at least the stock "
+                  "diameter to face all the way to center"),
     Field("feed", "Feed", "feed", 3.0, group="Cutting"),
     Field("clearance", "Clearance", "len", 0.040, group="Cutting"),
 ]
 
 
 def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
-    work_r = p["work_dia"] / 2.0
-    end_r = p["end_dia"] / 2.0
+    end_r = -p["dia_reduction"] / 2.0
+    if end_r >= 0:
+        raise ValueError("diameter to face across must be > 0")
     clear = p["clearance"]
 
-    prog = Program(machine, units, origin_r=work_r,
+    prog = Program(machine, units, origin_r=None,
                    start_note="touch off on the stock OD at the face")
     prog.header(
         "Facing",
-        [f"stock dia {p['work_dia']}, total depth {p['total_depth']}",
+        [f"face across {p['dia_reduction']} dia, total depth "
+         f"{p['total_depth']}",
          f"doc {p['doc']}, feed {p['feed']}"])
-    prog.rapid(x=work_r + clear, z=clear)
+    prog.rapid(x=clear, z=clear)
 
     # Z0 is the CURRENT face; each pass goes deeper until total_depth removed.
     z = 0.0
@@ -37,7 +47,7 @@ def generate(p: dict, machine: MachineProfile, units: Units) -> list[str]:
         step = min(p["doc"], remaining)
         z -= step
         remaining -= step
-        prog.rapid(x=work_r + clear)
+        prog.rapid(x=clear)
         prog.rapid(z=z)
         prog.feed(x=end_r, f=p["feed"])
         prog.rapid(z=z + clear)

@@ -119,17 +119,34 @@ def test_facing_reaches_center():
     op = BY_KEY["ext_facing"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     ext = extents(lines)
-    assert ext["X"][0] == pytest.approx(0.0)
+    # relative to the touched OD (X0): the default 0.75 dia sweep reaches
+    # 0.375 radius past the touch point, matching the old default stock size
+    assert ext["X"][0] == pytest.approx(-0.375)
     assert ext["Z"][0] == pytest.approx(-0.020)
+
+
+def test_facing_returns_to_the_touched_od():
+    op = BY_KEY["ext_facing"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 
 
 def test_parting_pecks():
     op = BY_KEY["int_parting"]
-    p = defaults(op) | {"peck": 0.05, "work_dia": 0.75, "end_dia": 0.0}
+    p = defaults(op) | {"peck": 0.05, "dia_reduction": 0.75}
     lines = op.generate(p, MACHINE, Units.INCH)
     plunges = ends_at(lines, "G1 X")
     assert len(plunges) == 8            # 0.375 radius / 0.05 peck
-    assert plunges[-1][0] == pytest.approx(0.0)      # parts off at center
+    # relative to the touched OD (X0): parts through to 0.375 past touch
+    assert plunges[-1][0] == pytest.approx(-0.375)
+
+
+def test_parting_returns_to_the_touched_od():
+    op = BY_KEY["int_parting"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 
 
 def test_taper_finish_pass_moves_both_axes():
