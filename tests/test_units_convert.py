@@ -16,7 +16,7 @@ def isolated_settings(monkeypatch, tmp_path):
 
 
 def test_convert_lengths_but_not_pitch(isolated_settings):
-    config.save_op_params("ext_turning", {"start_dia": 0.5, "feed": 3.0,
+    config.save_op_params("ext_turning", {"dia_reduction": 0.5, "feed": 3.0,
                                           "rpm": 600, "app_spindle": False})
     config.save_op_params("ext_thread", {"pitch_val": 20.0,
                                          "first_depth": 0.003})
@@ -24,7 +24,7 @@ def test_convert_lengths_but_not_pitch(isolated_settings):
     config.convert_saved_params(Units.INCH, Units.MM)
 
     turning = config.load_op_params("ext_turning")
-    assert float(turning["start_dia"]) == pytest.approx(12.7)
+    assert float(turning["dia_reduction"]) == pytest.approx(12.7)
     assert float(turning["feed"]) == pytest.approx(76.2)
     assert int(turning["rpm"]) == 600          # not a length, untouched
 
@@ -34,17 +34,17 @@ def test_convert_lengths_but_not_pitch(isolated_settings):
 
 
 def test_convert_round_trip(isolated_settings):
-    config.save_op_params("ext_turning", {"start_dia": 0.5})
+    config.save_op_params("ext_turning", {"dia_reduction": 0.5})
     config.convert_saved_params(Units.INCH, Units.MM)
     config.convert_saved_params(Units.MM, Units.INCH)
-    assert float(config.load_op_params("ext_turning")["start_dia"]) == \
+    assert float(config.load_op_params("ext_turning")["dia_reduction"]) == \
         pytest.approx(0.5)
 
 
 def test_convert_same_units_is_noop(isolated_settings):
-    config.save_op_params("ext_turning", {"start_dia": 0.5})
+    config.save_op_params("ext_turning", {"dia_reduction": 0.5})
     config.convert_saved_params(Units.MM, Units.MM)
-    assert float(config.load_op_params("ext_turning")["start_dia"]) == 0.5
+    assert float(config.load_op_params("ext_turning")["dia_reduction"]) == 0.5
 
 
 def test_convert_value():

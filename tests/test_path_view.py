@@ -33,10 +33,11 @@ def test_turning_feeds_match_passes():
     op = BY_KEY["ext_turning"]
     lines = op.generate(defaults(op), MACHINE, Units.INCH)
     feeds = [s for s in parse_segments(lines) if not s.rapid]
-    # default 0.25 -> 0.2 radius, doc 0.02, finish 0.005 -> 4 passes
+    # default 0.1 dia reduction -> 0.05 radius, doc 0.02, finish 0.005 ->
+    # 4 passes, relative to the touched OD (X0)
     assert len(feeds) == 4
     assert all(s.z1 == pytest.approx(-0.75) for s in feeds)
-    assert feeds[-1].x1 == pytest.approx(0.2)
+    assert feeds[-1].x1 == pytest.approx(-0.05)
 
 
 def test_g76_expands_to_thread_passes():
@@ -68,21 +69,28 @@ def test_g33_fallback_draws_same_shape():
 
 def test_relative_program_redrawn_in_absolute_coordinates():
     # the ORIGIN comment is what lets the plot show real diameters even
-    # though every move in the program is a delta
+    # though every move in the program is a delta -- OD turning has no such
+    # reference any more (it works off the touched OD, not a known
+    # diameter), so this checks an op that still has one
     from grbl_turn.units import Units
-    op = BY_KEY["ext_turning"]
-    p = defaults(op) | {"start_dia": 0.5, "end_dia": 0.4, "length": 0.75}
+    op = BY_KEY["int_boring"]
+    p = defaults(op) | {"start_dia": 0.4, "end_dia": 0.5, "length": 0.75}
     segs = parse_segments(op.generate(p, MACHINE, Units.INCH))
-    assert segs[0].x0 == pytest.approx(0.25)      # touch-off radius
+    assert segs[0].x0 == pytest.approx(0.2)       # touch-off radius
     assert segs[0].z0 == pytest.approx(0.0)       # the face
     ext = segment_extents(segs)
-    assert ext["X"][0] == pytest.approx(0.20)     # finished radius
+    assert ext["X"][1] == pytest.approx(0.25)     # finished (bored) radius
     assert ext["Z"][0] == pytest.approx(-0.75)
 
 
 def test_relative_program_ends_where_it_started():
+    # excludes ops with no absolute X reference (threading, OD turning):
+    # their first move is the invisible seed for the no-origin drawing
+    # convention, not a drawn segment, so segs[0] isn't the touch point --
+    # see test_thread_g33_returns_to_the_start / test_turning_returns_to_
+    # the_touched_od in test_gcode_ops.py for those instead
     from grbl_turn.units import Units
-    for key in ("ext_turning", "ext_facing", "int_boring", "int_parting",
+    for key in ("ext_facing", "int_boring", "int_parting",
                 "ext_taper", "int_taper"):
         op = BY_KEY[key]
         segs = parse_segments(op.generate(defaults(op), MACHINE, Units.INCH))

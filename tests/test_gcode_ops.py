@@ -50,12 +50,13 @@ def test_all_ops_generate_with_defaults(op, units):
 
 def test_turning_passes_and_extents():
     op = BY_KEY["ext_turning"]
-    p = defaults(op) | {"start_dia": 0.5, "end_dia": 0.4, "doc": 0.02,
+    p = defaults(op) | {"dia_reduction": 0.1, "doc": 0.02,
                         "finish_allow": 0.005, "length": 0.75}
     lines = op.generate(p, MACHINE, Units.INCH)
     ext = extents(lines)
-    # radius mode: deepest X word is the final radius
-    assert ext["X"][0] == pytest.approx(0.2)
+    # radius mode: deepest X word is the final radius, relative to the
+    # touched OD (X0) since no absolute diameter is ever asked for
+    assert ext["X"][0] == pytest.approx(-0.05)
     assert ext["Z"][0] == pytest.approx(-0.75)
     # each cut is one relative move: clearance in front of the face, then
     # the full length
@@ -63,18 +64,28 @@ def test_turning_passes_and_extents():
     assert all(z == pytest.approx(-0.75) for _, z in ends_at(lines, "G1 Z"))
 
 
+def test_turning_returns_to_the_touched_od():
+    # no absolute diameter is ever asked for, so like threading, the
+    # program has to come back to the touched OD (0,0) to be re-runnable
+    op = BY_KEY["ext_turning"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
+
+
 def test_turning_diameter_mode():
     op = BY_KEY["ext_turning"]
     machine = MachineProfile(x_words_are_diameter=True)
     lines = op.generate(defaults(op), machine, Units.INCH)
     ext = extents(lines)
-    assert ext["X"][0] == pytest.approx(0.4)   # X words are diameters
+    assert ext["X"][0] == pytest.approx(-0.1)   # X words are diameters
 
 
 def test_turning_rejects_growing_cut():
     op = BY_KEY["ext_turning"]
     with pytest.raises(ValueError):
-        op.generate(defaults(op) | {"end_dia": 0.6}, MACHINE, Units.INCH)
+        op.generate(defaults(op) | {"dia_reduction": -0.1}, MACHINE,
+                    Units.INCH)
 
 
 def test_boring_retracts_inward():
