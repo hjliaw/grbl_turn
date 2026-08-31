@@ -5,7 +5,7 @@ plot is the run feedback."""
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QFont, QIcon
-from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel, QLineEdit,
                                QPlainTextEdit, QPushButton, QScroller,
                                QStackedWidget, QVBoxLayout, QWidget)
 
@@ -50,7 +50,17 @@ class RunPage(QWidget):
         self.console.setFont(QFont("Courier New", 12))
         QScroller.grabGesture(self.console.viewport(),
                               QScroller.ScrollerGestureType.LeftMouseButtonGesture)
-        self.views.addWidget(self.console)
+        self.console_input = QLineEdit()
+        self.console_input.setFont(QFont("Courier New", 12))
+        self.console_input.setPlaceholderText("Type a G-code line, press Enter to send…")
+        self.console_input.returnPressed.connect(self.on_console_send)
+        console_page = QWidget()
+        console_layout = QVBoxLayout(console_page)
+        console_layout.setContentsMargins(0, 0, 0, 0)
+        console_layout.setSpacing(4)
+        console_layout.addWidget(self.console, 1)
+        console_layout.addWidget(self.console_input)
+        self.views.addWidget(console_page)
 
         def icon_btn(icon: str, tip: str) -> QPushButton:
             b = QPushButton(QIcon(resource(icon)), "")
@@ -152,6 +162,7 @@ class RunPage(QWidget):
         ready = (self.controller.is_connected
                  and not self.controller.is_streaming)
         self.run_btn.setEnabled(ready)
+        self.console_input.setEnabled(ready)
 
     def show_view(self, idx: int) -> None:
         self.view_group.button(idx).setChecked(True)
@@ -188,6 +199,7 @@ class RunPage(QWidget):
     def on_run(self) -> None:
         self.run_btn.setEnabled(False)
         self.back_btn.setEnabled(False)     # stop or finish before leaving
+        self.console_input.setEnabled(False)
         for b in (self.hold_btn, self.resume_btn, self.stop_btn):
             b.setEnabled(True)
         self.controller.stream(self.lines)
@@ -208,6 +220,13 @@ class RunPage(QWidget):
 
     def on_log(self, direction: str, text: str) -> None:
         self.console.appendPlainText(f"{direction} {text}")
+
+    def on_console_send(self) -> None:
+        line = self.console_input.text().strip()
+        if not line:
+            return
+        self.console_input.clear()
+        self.controller.send_line(line)
 
     def on_save(self) -> None:
         from PySide6.QtWidgets import QFileDialog
