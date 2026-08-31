@@ -242,9 +242,10 @@
      y2="430"
      stroke="#2f8fce"
      stroke-width="1.25174"
+     marker-start="url(#arrow-4)"
      marker-end="url(#arrow-4)"
      id="line26"
-     style="overflow:visible;fill:#000000;fill-opacity:0;marker-start:url(#arrow-4);marker-end:url(#arrow-4);stroke-width:2;stroke-dasharray:none" />
+     style="overflow:visible;stroke-width:2;stroke-dasharray:none" />
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:48px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;fill:#ffffff;fill-opacity:1"
