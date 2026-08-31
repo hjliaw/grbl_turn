@@ -28,7 +28,7 @@ def _fields(internal: bool) -> list[Field]:
     mode_cut = MODE_CUT_INT if internal else MODE_CUT
     if internal:
         change_field = Field(
-            "dia_increase", "Diameter increase at face", "dia", 0.250,
+            "dia_increase", "Diameter increase at face (Δd)", "dia", 0.250,
             group="X (cross-slide)",
             tooltip="How much to enlarge the diameter at the face, "
                     "measured from the touched surface: bored up before "
@@ -36,7 +36,7 @@ def _fields(internal: bool) -> list[Field]:
                     "existing taper when trimming")
     else:
         change_field = Field(
-            "dia_reduction", "Diameter reduction at face", "dia", 0.250,
+            "dia_reduction", "Diameter reduction at face (Δd)", "dia", 0.250,
             group="X (cross-slide)",
             tooltip="How much to reduce the diameter at the face, "
                     "measured from the touched surface: turned down "

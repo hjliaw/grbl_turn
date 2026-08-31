@@ -155,11 +155,6 @@
        id="dim-d"
        sodipodi:nodetypes="cc" />
     <path
-       style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#arrow-4-7);marker-end:url(#arrow-4-7)"
-       d="m 265.99564,401.69038 v 160"
-       id="dim-d-3"
-       sodipodi:nodetypes="cc" />
-    <path
        style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#arrow-4-2);marker-end:url(#arrow-4-2)"
        d="m 329.59564,543.69038 h 340"
        id="dim-l" />
@@ -169,13 +164,13 @@
        id="dim-a"
        sodipodi:nodetypes="cc" />
     <text
-       style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
-       x="698.46442"
+       style="font-style:normal;font-weight:normal;font-size:34px;font-family:Sans;fill:#ffffff;stroke:none"
+       x="692"
        y="665.96381"
        id="text-d"><tspan
-         x="698.46442"
+         x="692"
          y="665.96381"
-         id="tspan-d">d</tspan></text>
+         id="tspan-d">&#916;d</tspan></text>
     <text
        style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
        x="571.31598"
@@ -192,13 +187,5 @@
          x="490.99564"
          y="536.69037"
          id="tspan-l">L</tspan></text>
-    <text
-       style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
-       x="276.30814"
-       y="496.6904"
-       id="text-l-6"><tspan
-         x="276.30814"
-         y="496.6904"
-         id="tspan-l-2">D</tspan></text>
   </g>
 </svg>
