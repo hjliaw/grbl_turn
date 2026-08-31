@@ -90,12 +90,29 @@ def test_turning_rejects_growing_cut():
 
 def test_boring_retracts_inward():
     op = BY_KEY["int_boring"]
-    p = defaults(op) | {"start_dia": 0.25, "end_dia": 0.375,
-                        "clearance": 0.02}
+    p = defaults(op) | {"dia_increase": 0.125, "clearance": 0.02}
     lines = op.generate(p, MACHINE, Units.INCH)
     ext = extents(lines)
-    assert ext["X"][0] == pytest.approx(0.125 - 0.02)  # never past start bore
-    assert ext["X"][1] == pytest.approx(0.375 / 2)
+    # relative to the touched bore wall (X0): never retreats past clearance,
+    # never cuts past the target radius
+    assert ext["X"][0] == pytest.approx(-0.02)
+    assert ext["X"][1] == pytest.approx(0.0625)
+
+
+def test_boring_rejects_zero_increase():
+    op = BY_KEY["int_boring"]
+    with pytest.raises(ValueError):
+        op.generate(defaults(op) | {"dia_increase": 0.0}, MACHINE, Units.INCH)
+
+
+def test_boring_returns_to_the_touched_wall():
+    # no absolute bore diameter is ever asked for, so like threading and OD
+    # turning, the program has to come back to the touched wall (0,0) to be
+    # re-runnable
+    op = BY_KEY["int_boring"]
+    lines = op.generate(defaults(op), MACHINE, Units.INCH)
+    end = positions(lines)[-1]
+    assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0)
 
 
 def test_facing_reaches_center():
