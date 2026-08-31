@@ -7,7 +7,7 @@
    viewBox="3.100123 6.586904 600 600"
    version="1.1"
    id="svg5114"
-   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
    sodipodi:docname="ext_taper_dim.svg"
    inkscape:export-filename="C:\Users\Brenda Ellen Make\Dropbox\Brenda\Linux CNC\Presentation\Menu Help.png"
    inkscape:export-xdpi="96"
@@ -154,16 +154,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.6151829"
-     inkscape:cx="87.778773"
-     inkscape:cy="205.6299"
+     inkscape:zoom="0.87"
+     inkscape:cx="381.03448"
+     inkscape:cy="283.90805"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="1491"
-     inkscape:window-height="796"
-     inkscape:window-x="115"
-     inkscape:window-y="133"
+     inkscape:window-width="1667"
+     inkscape:window-height="870"
+     inkscape:window-x="129"
+     inkscape:window-y="46"
      inkscape:window-maximized="0"
      showguides="false"
      inkscape:guide-bbox="true"
@@ -364,7 +364,7 @@
        sodipodi:nodetypes="cc" />
     <path
        style="display:inline;fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="M 722.76676,541.78548 H 680.43342"
+       d="M 722.76677,347.12029 H 680.43343"
        id="path17957-1-2-4"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
@@ -375,8 +375,8 @@
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <path
-       style="fill:#e1f0e1;fill-opacity:0.8;stroke:#2f8fce;stroke-width:2;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#arrow-4);marker-end:url(#arrow-4)"
-       d="m 697.36675,541.78548 -10e-6,-110.02815"
+       style="fill:#e1f0e1;fill-opacity:0.8;stroke:#2f8fce;stroke-width:1.75412;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#arrow-4);marker-end:url(#arrow-4)"
+       d="m 697.36675,347.12029 -10e-6,84.63704"
        id="path2"
        sodipodi:nodetypes="cc" />
     <path
@@ -387,13 +387,13 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:28px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:2;stroke-dasharray:none;stroke-opacity:1"
-       x="698"
-       y="497.2041"
+       x="672"
+       y="460.82651"
        id="text2"><tspan
          sodipodi:role="line"
          id="tspan2"
-         x="698"
-         y="497.2041">&#916;d</tspan></text>
+         x="672"
+         y="460.82651">Δd/2</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:48px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:2;stroke-dasharray:none;stroke-opacity:1"

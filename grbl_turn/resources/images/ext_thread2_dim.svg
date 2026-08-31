@@ -7,7 +7,7 @@
    version="1.1"
    id="svg22"
    sodipodi:docname="ext_thread2_dim.svg"
-   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,15 +22,16 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#3c3c3c"
      showgrid="false"
-     inkscape:zoom="1"
-     inkscape:cx="405.5"
-     inkscape:cy="337.5"
-     inkscape:window-width="1472"
-     inkscape:window-height="896"
-     inkscape:window-x="73"
-     inkscape:window-y="80"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="svg22">
+     inkscape:zoom="2"
+     inkscape:cx="606"
+     inkscape:cy="391.75"
+     inkscape:window-width="1856"
+     inkscape:window-height="1009"
+     inkscape:window-x="64"
+     inkscape:window-y="34"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg22"
+     inkscape:pageshadow="2">
     <inkscape:grid
        id="grid25"
        units="px"
@@ -168,7 +169,7 @@
      stroke="#a4abbb"
      stroke-width="0.789583"
      id="line15-3"
-     style="overflow:visible;stroke-width:2;stroke-dasharray:none" />
+     style="overflow:visible;stroke-width:2;stroke-dasharray:none;stroke:#10141e;stroke-opacity:1" />
   <line
      x1="719.95001"
      y1="595"
