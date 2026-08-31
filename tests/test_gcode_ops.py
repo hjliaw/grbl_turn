@@ -143,9 +143,9 @@ def test_taper_finish_pass_moves_both_axes():
 def test_taper_trim_progressive_passes():
     import math
     op = BY_KEY["ext_taper"]
-    p = defaults(op) | {"mode": MODE_TRIM}
-    # defaults: existing 0.500 -> target 0.480 at face, 0.010 radial skin;
-    # doc 0.020 covers it in a single full-length pass
+    # 0.020 dia (0.010 radial) skin off the touched existing taper; doc
+    # 0.020 covers it in a single full-length pass
+    p = defaults(op) | {"mode": MODE_TRIM, "dia_reduction": 0.02}
     lines = op.generate(p, MACHINE, Units.INCH)
 
     def taper_ends(lines):
@@ -160,22 +160,35 @@ def test_taper_trim_progressive_passes():
 
     assert len(taper_ends(lines)) == 1
     assert not roughing_cuts(lines)
-    end_r = p["target_dia"] / 2 + p["length"] * math.tan(
+    # end radius relative to the touched surface (X0): the skin removed at
+    # the face, plus the taper's own rise over its length
+    end_r = -p["dia_reduction"] / 2 + p["length"] * math.tan(
         math.radians(p["angle"]))
     assert taper_ends(lines)[0][0] == pytest.approx(end_r, abs=1e-4)
-    # stock diameter is irrelevant in trim mode
-    assert op.generate(p | {"start_dia": 9.9}, MACHINE, Units.INCH) == lines
 
     # a smaller doc steps down in parallel passes, ending on the target
     lines = op.generate(p | {"doc": 0.004}, MACHINE, Units.INCH)
     ends = taper_ends(lines)
-    assert len(ends) == 3          # 0.010 skin / 0.004 doc
+    assert len(ends) == 3          # 0.010 radial skin / 0.004 doc
     assert ends[-1][0] == pytest.approx(end_r, abs=1e-4)
     assert ends[0][0] == pytest.approx(end_r + 0.006, abs=1e-4)
 
-    # a target that leaves the existing surface uncut is an error
+
+def test_taper_rejects_negative_change():
+    op = BY_KEY["ext_taper"]
     with pytest.raises(ValueError):
-        op.generate(p | {"target_dia": 0.6}, MACHINE, Units.INCH)
+        op.generate(defaults(op) | {"dia_reduction": -0.1}, MACHINE,
+                    Units.INCH)
+
+
+def test_taper_returns_to_the_touched_surface():
+    # no absolute diameter is ever asked for, so like the other converted
+    # ops, the program has to come back to the touched surface (0,0)
+    for key in ("ext_taper", "int_taper"):
+        op = BY_KEY[key]
+        lines = op.generate(defaults(op), MACHINE, Units.INCH)
+        end = positions(lines)[-1]
+        assert end[1] == pytest.approx(0.0) and end[2] == pytest.approx(0.0), key
 
 
 def test_taper_overrun_warns_but_generates():

@@ -86,13 +86,14 @@ def test_relative_program_redrawn_in_absolute_coordinates():
 
 def test_relative_program_ends_where_it_started():
     # excludes ops with no absolute X reference (threading, OD turning,
-    # boring): their first move is the invisible seed for the no-origin
-    # drawing convention, not a drawn segment, so segs[0] isn't the touch
-    # point -- see test_thread_g33_returns_to_the_start /
+    # boring, tapers): their first move is the invisible seed for the
+    # no-origin drawing convention, not a drawn segment, so segs[0] isn't
+    # the touch point -- see test_thread_g33_returns_to_the_start /
     # test_turning_returns_to_the_touched_od / test_boring_returns_to_the_
-    # touched_wall in test_gcode_ops.py for those instead
+    # touched_wall / test_taper_returns_to_the_touched_surface in
+    # test_gcode_ops.py for those instead
     from grbl_turn.units import Units
-    for key in ("ext_facing", "int_parting", "ext_taper", "int_taper"):
+    for key in ("ext_facing", "int_parting"):
         op = BY_KEY[key]
         segs = parse_segments(op.generate(defaults(op), MACHINE, Units.INCH))
         assert (segs[-1].z1, segs[-1].x1) == pytest.approx(
