@@ -6,7 +6,7 @@
    version="1.1"
    id="svg5114"
    sodipodi:docname="int_taper_dim.svg"
-   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -21,15 +21,16 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="1.0316667"
-     inkscape:cx="469.14378"
-     inkscape:cy="339.74152"
-     inkscape:window-width="1491"
-     inkscape:window-height="796"
-     inkscape:window-x="217"
-     inkscape:window-y="102"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="svg5114">
+     inkscape:zoom="2.0633334"
+     inkscape:cx="469.14377"
+     inkscape:cy="426.73666"
+     inkscape:window-width="1856"
+     inkscape:window-height="1009"
+     inkscape:window-x="64"
+     inkscape:window-y="34"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5114"
+     inkscape:pageshadow="2">
     <inkscape:grid
        id="grid1"
        units="px"
@@ -118,74 +119,73 @@
          id="path1" />
     </marker>
   </defs>
-  <g
-     id="layer1"
-     transform="translate(-137.89552,-160.10348)">
-    <path
-       style="fill:#829282;fill-opacity:1;stroke:none"
-       d="m 180.99564,236.69038 h 490 v 110 l -340,55 h -90 l -35,80 35,80 h 90 l 340,55 v 115 h -490 z"
-       id="part"
-       sodipodi:nodetypes="cccccccccccc" />
-    <path
-       style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
-       d="m 681.99564,346.69038 h 58"
-       id="witness-d-top" />
-    <path
-       style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
-       d="m 677.99564,616.69038 h 58"
-       id="witness-d-bottom" />
-    <path
-       style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
-       d="m 330.99564,526.69038 0,30"
-       id="witness-taper-end"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
-       d="m 670.99564,526.69038 0,80"
-       id="witness-taper-end-8"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
-       d="m 575.99564,401.69038 -235,0"
-       id="angle-ref"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#arrow-4);marker-end:url(#arrow-4)"
-       d="m 710.99564,346.69038 v 270"
-       id="dim-d"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#arrow-4-2);marker-end:url(#arrow-4-2)"
-       d="m 329.59564,543.69038 h 340"
-       id="dim-l" />
-    <path
-       style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#marker1-0);marker-end:url(#arrow-4-2)"
-       d="m 555.99564,401.69038 c 0,-15 0,-20 -9,-35.29648"
-       id="dim-a"
-       sodipodi:nodetypes="cc" />
-    <text
-       style="font-style:normal;font-weight:normal;font-size:34px;font-family:Sans;fill:#ffffff;stroke:none"
-       x="692"
-       y="665.96381"
-       id="text-d"><tspan
-         x="692"
-         y="665.96381"
-         id="tspan-d">&#916;d</tspan></text>
-    <text
-       style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
-       x="571.31598"
-       y="395.96384"
-       id="text-a"><tspan
-         x="571.31598"
-         y="395.96384"
-         id="tspan-a">a</tspan></text>
-    <text
-       style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
-       x="490.99564"
-       y="536.69037"
-       id="text-l"><tspan
-         x="490.99564"
-         y="536.69037"
-         id="tspan-l">L</tspan></text>
-  </g>
+  <path
+     style="fill:#829282;fill-opacity:1;stroke:none"
+     d="m 43.10012,76.5869 h 490 v 110 l -340,55 h -90 l -35,80 35,80 h 90 l 340,55 v 115 h -490 z"
+     id="part"
+     sodipodi:nodetypes="cccccccccccc" />
+  <path
+     style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
+     d="m 539.96594,399.20322 h 58"
+     id="witness-d-top" />
+  <path
+     style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
+     d="m 540.10012,456.5869 h 58"
+     id="witness-d-bottom" />
+  <path
+     style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
+     d="m 193.10012,366.5869 v 30"
+     id="witness-taper-end"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
+     d="m 533.10012,366.5869 v 80"
+     id="witness-taper-end-8"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#f3ebeb;stroke-width:2;stroke-linecap:butt"
+     d="m 438.10012,241.5869 h -235"
+     id="angle-ref"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#2f8fce;stroke-width:0.902671;marker-start:url(#arrow-4);marker-end:url(#arrow-4)"
+     d="m 569.93625,401.5869 v 55"
+     id="dim-d"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#arrow-4-2);marker-end:url(#arrow-4-2)"
+     d="m 191.70012,383.5869 h 340"
+     id="dim-l" />
+  <path
+     style="fill:none;stroke:#2f8fce;stroke-width:2;marker-start:url(#marker1-0);marker-end:url(#arrow-4-2)"
+     d="m 418.10012,241.5869 c 0,-15 0,-20 -9,-35.29648"
+     id="dim-a"
+     sodipodi:nodetypes="cc" />
+  <text
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.6272px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke:none;stroke-width:0.753743"
+     x="489.77451"
+     y="534.28711"
+     id="text-d"
+     transform="scale(1.0974275,0.91122192)"><tspan
+       sodipodi:role="line"
+       id="tspan910"
+       x="489.77451"
+       y="534.28711"
+       style="stroke-width:0.753743">Δd/2</tspan></text>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
+     x="433.42047"
+     y="235.86035"
+     id="text-a"><tspan
+       x="433.42047"
+       y="235.86035"
+       id="tspan-a">a</tspan></text>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:48px;font-family:Sans;fill:#ffffff;stroke:none"
+     x="353.10013"
+     y="376.58688"
+     id="text-l"><tspan
+       x="353.10013"
+       y="376.58688"
+       id="tspan-l">L</tspan></text>
 </svg>
