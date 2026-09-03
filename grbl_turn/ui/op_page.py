@@ -15,6 +15,7 @@ from grbl_turn import resource
 from grbl_turn.config import load_op_params, save_op_params
 from grbl_turn.machine import MachineProfile
 from grbl_turn.ops.base import DIMENSIONAL_KINDS, Field, Operation
+from grbl_turn.ops.threading_op import MODE_CUT, MODE_DEEPER
 from grbl_turn.ui.numpad import NumPad, TouchNumberEdit
 from grbl_turn.ui.widgets import NumericCombo, TouchCombo
 from grbl_turn.units import MM_PER_INCH, Units
@@ -72,6 +73,7 @@ class OpPage(QWidget):
         self._auto_btns: dict[str, QPushButton] = {}   # field name -> gear button
         self._auto_active: dict[str, bool] = {}   # field name -> value != auto
         self._auto_prev: dict[str, str] = {}   # custom value to revert to
+        self._first_depth_prev: str | None = None   # J before "Cut deeper"
 
         back = QPushButton(QIcon(resource("undo.svg")), "")
         back.setObjectName("back")
@@ -177,16 +179,12 @@ class OpPage(QWidget):
         # Cut deeper: after a thread comes up short on a test fit, collapse
         # the degressive schedule to one clean pass at a new target depth
         # instead of re-running every pass that already fits (see
-        # ops/passes.thread_infeeds — first_depth == total_depth skips the
-        # degression entirely).
-        if op.is_threading:
-            cut_deeper = QPushButton("Cut deeper")
-            cut_deeper.setToolTip(
-                "Thread came up short? Sets First pass depth (J) to the "
-                "depth just cut, then asks for the new Total depth (K) — "
-                "one pass to the new depth, not the whole schedule again.")
-            cut_deeper.clicked.connect(self.on_cut_deeper)
-            left.addWidget(cut_deeper)
+        # ops/passes.thread_infeeds — a first pass at the depth already cut
+        # leaves only the remainder). It rides the mode selector above the
+        # diagram, the same place tapers pick cut-from-stock vs trim.
+        if op.is_threading and "mode" in self.widgets:
+            self.widgets["mode"].currentTextChanged.connect(
+                self._on_thread_mode)
 
         # Generate lives outside the scroll area: always visible,
         # at the bottom of the diagram column so the form gets full height
@@ -451,13 +449,25 @@ class OpPage(QWidget):
                 params[f.name] = float(text)
         return params
 
-    def on_cut_deeper(self) -> None:
-        k_widget = self.widgets["total_depth"]
+    def _on_thread_mode(self, mode: str) -> None:
+        """Cut deeper: the thread came up short on a test fit, so First pass
+        depth (J) becomes the depth just cut and Total depth (K) the new
+        target — one pass down to it. Cut from stock puts J back if this
+        session collapsed it."""
         j_widget = self.widgets["first_depth"]
-        j_widget.setText(k_widget.text())
+        if mode != MODE_DEEPER:
+            if self._first_depth_prev is not None:
+                j_widget.setText(self._first_depth_prev)
+                self._first_depth_prev = None
+            return
+        k_widget = self.widgets["total_depth"]
         text, ok = NumPad.get_value(k_widget.pad_label, k_widget.text(), self)
-        if ok:
-            k_widget.setText(text)
+        if not ok:   # nothing collapsed yet: fall back to the other mode
+            self.widgets["mode"].setCurrentText(MODE_CUT)
+            return
+        self._first_depth_prev = j_widget.text()
+        j_widget.setText(k_widget.text())
+        k_widget.setText(text)
 
     def on_generate(self) -> None:
         try:

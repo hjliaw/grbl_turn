@@ -109,12 +109,12 @@
   </defs>
   <path
      d="M 90,510.68349 195,510 240,430 285.00011,510.03334 295,510 l 45,-80 50,80 h 10 l 50,-80 50,80 h 10 l 50,-80 50,80 h 10 l 50,-80 50,80 -0.1,-262.91644 v -79 L 720,140 680,90 H 670 L 620,170 570,90 H 560 L 510,170 460,90 H 450 L 400,170 350,90 H 340 L 290,170 240,90 C 189.99706,90.262912 139.99825,89.567172 90,88.983492 Z"
-     fill="#353c4d"
+     fill="#758775"
      stroke="#232936"
      stroke-width="1.5"
      id="path2"
      sodipodi:nodetypes="cccccccccccccccccccccccccccccccccc"
-     style="fill:#e1f0e1;fill-opacity:0.80000001" />
+     style="fill:#758775;fill-opacity:1" />
   <line
      x1="240"
      y1="20"

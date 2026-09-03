@@ -19,9 +19,18 @@ from grbl_turn.units import Units, fmt
 EXT_DEPTH_FACTOR = 0.6134
 INT_DEPTH_FACTOR = 0.5413
 
+MODE_CUT = "Cut from stock"
+MODE_DEEPER = "Cut deeper"
+
 
 def _fields(internal: bool) -> list[Field]:
     return [
+        Field("mode", "Mode", "choice", MODE_CUT, placement="left",
+              choices=[MODE_CUT, MODE_DEEPER],
+              tooltip="Cut deeper: thread came up short on a test fit? "
+                      "Sets First pass depth (J) to the depth just cut, "
+                      "then asks for the new Total depth (K) — one pass "
+                      "to the new depth, not the whole schedule again"),
         Field("pitch_val", "Pitch (P)", "pitch", 20.0, group="Z (bed/leadscrew)",
               default_mm=1.5,
               tooltip="Inch mode: TPI; mm mode: mm/rev"),
